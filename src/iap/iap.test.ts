@@ -25,7 +25,7 @@ describe('fetchProducts', () => {
     const products = await fetchProducts();
     expect(products.length).toBeGreaterThanOrEqual(2);
     expect(products.find((p) => p.id === PRODUCT_IDS.monthly)).toBeDefined();
-    expect(products.find((p) => p.id === PRODUCT_IDS.annual)).toBeDefined();
+    expect(products.find((p) => p.id === PRODUCT_IDS.yearly)).toBeDefined();
   });
 
   it('every product has the required fields', async () => {
@@ -66,7 +66,7 @@ describe('restorePurchases', () => {
 
 describe('PRODUCT_IDS', () => {
   it('has stable identifiers matching App Store Connect convention', () => {
-    expect(PRODUCT_IDS.monthly).toBe('shotday.monthly');
-    expect(PRODUCT_IDS.annual).toBe('shotday.annual');
+    expect(PRODUCT_IDS.monthly).toBe('com.senthil.shotday.monthly');
+    expect(PRODUCT_IDS.yearly).toBe('com.senthil.shotday.yearly');
   });
 });

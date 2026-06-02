@@ -78,7 +78,7 @@ Full dark and light themes that follow iOS system settings, or pick one manually
 Shotday is a tracking tool, not medical advice. It's built from publicly available manufacturer guidance and standard nutrition science. Always consult your prescribing physician before starting, stopping, or changing any medication. In an emergency, call your local emergency number.
 
 ▸ SHOTDAY PRO
-A 14-day free trial unlocks everything. After that, Pro is $4.99/month or $39.99/year (auto-renewable subscription via your Apple ID). Cancel any time in your Apple ID Account Settings. Your data stays on your device whether or not you subscribe.
+A 14-day free trial unlocks everything. After that, Pro is $4.99/month or $29.99/year (auto-renewable subscription via your Apple ID). Cancel any time in your Apple ID Account Settings. Your data stays on your device whether or not you subscribe.
 
 ————————
 

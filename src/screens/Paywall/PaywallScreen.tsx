@@ -64,9 +64,9 @@ export function PaywallScreen(): React.ReactElement {
       const list = await fetchProducts();
       if (!cancelled) {
         setProducts(list);
-        // Default to annual (better deal) if available, else monthly.
-        const annual = list.find((p) => p.period === 'YEAR');
-        setSelectedId(annual?.id ?? list[0]?.id ?? null);
+        // Default to yearly (better deal) if available, else monthly.
+        const yearly = list.find((p) => p.period === 'YEAR');
+        setSelectedId(yearly?.id ?? list[0]?.id ?? null);
         setLoading(false);
       }
     })();

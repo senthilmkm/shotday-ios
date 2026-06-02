@@ -252,7 +252,7 @@ Connect dashboard work + EAS credentials + hosting the policies).
 - [ ] Enroll / verify Apple Developer Program membership
 - [ ] Create `Shotday` app record in App Store Connect with bundle id `com.senthil.shotday`
 - [ ] Host `privacy.html` and `terms.html` at the URLs hard-coded in `src/copy/subscription.ts` (`https://www.spinwheelgo.com/shotday/{privacy,terms}.html`)
-- [ ] Configure IAP products in App Store Connect (`shotday_pro_monthly`, `shotday_pro_yearly`) with 14-day intro offer
+- [ ] Configure IAP products in App Store Connect (`com.senthil.shotday.monthly`, `com.senthil.shotday.yearly`) with 14-day intro offer
 - [ ] Configure RevenueCat project + paste public iOS API key into `.env.local`
 - [ ] Submit Privacy Nutrition Labels (answer "No" to data collection)
 - [ ] Submit Age Rating questionnaire (Medical/Treatment + Drug Use → 17+)

@@ -38,8 +38,8 @@ export interface PurchaseResult {
 
 /** App Store product identifiers. Configured in App Store Connect (Phase F). */
 export const PRODUCT_IDS = {
-  monthly: 'shotday.monthly',
-  annual: 'shotday.annual',
+  monthly: 'com.senthil.shotday.monthly',
+  yearly: 'com.senthil.shotday.yearly',
 } as const;
 
 /** Returns true when we're running in an environment with native IAP support. */
@@ -93,7 +93,7 @@ export async function configureIap(apiKey: string): Promise<void> {
 }
 
 /**
- * Returns the available products (monthly + annual). When IAP is
+ * Returns the available products (monthly + yearly). When IAP is
  * unavailable (Expo Go, simulator without StoreKit) we return mock
  * products so the paywall UI still renders. Mock prices are placeholders
  * — the real numbers are configured in App Store Connect.
@@ -101,7 +101,7 @@ export async function configureIap(apiKey: string): Promise<void> {
 export async function fetchProducts(): Promise<SubscriptionProduct[]> {
   const mock: SubscriptionProduct[] = [
     { id: PRODUCT_IDS.monthly, title: 'Monthly', priceString: '$4.99', period: 'MONTH' },
-    { id: PRODUCT_IDS.annual, title: 'Annual', priceString: '$29.99', period: 'YEAR' },
+    { id: PRODUCT_IDS.yearly, title: 'Yearly', priceString: '$29.99', period: 'YEAR' },
   ];
   if (!isIapAvailable()) return mock;
 

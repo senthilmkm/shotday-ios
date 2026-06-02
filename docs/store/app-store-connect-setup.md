@@ -104,20 +104,20 @@ in `src/iap/iap.ts`:
 ```ts
 // src/iap/iap.ts
 export const PRODUCT_IDS = {
-  monthly: 'shotday_pro_monthly',
-  yearly: 'shotday_pro_yearly',
+  monthly: 'com.senthil.shotday.monthly',
+  yearly: 'com.senthil.shotday.yearly',
 };
 ```
 
 | Field | Monthly | Yearly |
 |---|---|---|
 | Reference Name | `Shotday Pro Monthly` | `Shotday Pro Yearly` |
-| Product ID | `shotday_pro_monthly` | `shotday_pro_yearly` |
+| Product ID | `com.senthil.shotday.monthly` | `com.senthil.shotday.yearly` |
 | Subscription Group | `Shotday Pro` | `Shotday Pro` |
 | Subscription Duration | 1 Month | 1 Year |
-| Price (USD) | $4.99 | $39.99 |
+| Price (USD) | $4.99 | $29.99 |
 | Localizations → Display Name | `Shotday Pro` | `Shotday Pro` |
-| Localizations → Description | `Track every part of your weekly GLP-1 routine. Cancel any time.` | `Track every part of your weekly GLP-1 routine. Cancel any time. Save 33% vs. monthly.` |
+| Localizations → Description | `Track every part of your weekly GLP-1 routine. Cancel any time.` | `Track every part of your weekly GLP-1 routine. Cancel any time. Save 50% vs. monthly.` |
 | Free Trial | 14 days (Introductory Offer → Free) | 14 days (Introductory Offer → Free) |
 | Family Sharing | OFF (you can flip this on later if you want) |
 
