@@ -48,6 +48,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3db257f0-3c91-430f-a296-98d711aa822f"
+      }
+    },
+    "owner": "senthil930"
   }
 }
