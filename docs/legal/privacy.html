@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy — Shotday</title>
+<meta name="robots" content="index, follow" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #0f172a;
+    --muted: #475569;
+    --primary: #0f766e;
+    --border: #e2e8f0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1118;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --primary: #2dd4bf;
+      --border: #1e293b;
+    }
+  }
+  html { box-sizing: border-box; }
+  *, *:before, *:after { box-sizing: inherit; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    font-size: 17px;
+  }
+  main {
+    max-width: 720px;
+    padding: 48px 24px 96px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 36px;
+    line-height: 1.2;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: 22px;
+    margin: 40px 0 12px;
+    letter-spacing: -0.01em;
+  }
+  .updated {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 32px;
+  }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 22px; margin: 0 0 14px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--primary); }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 40px 0; }
+  .nav {
+    margin-bottom: 32px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .nav a { color: var(--muted); text-decoration: none; }
+  .nav a:hover { color: var(--primary); }
+  code {
+    background: var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="nav">
+    <a href="https://www.spinwheelgo.com/shotday/">Shotday</a> &middot;
+    <strong>Privacy Policy</strong> &middot;
+    <a href="./terms.html">Terms of Use</a>
+  </div>
+
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: June 2, 2026</p>
+
+  <p>
+    Shotday (&ldquo;the App&rdquo;, &ldquo;we&rdquo;, &ldquo;our&rdquo;, &ldquo;us&rdquo;) is a personal
+    GLP-1 medication tracker built around a single privacy commitment:
+    <strong>your health data stays on your device</strong>. We do not run a server. We do not collect,
+    store, or transmit your information. This page exists to comply with App Store requirements and to
+    explain &mdash; in plain language &mdash; what that means for you.
+  </p>
+
+  <h2>1. The short version</h2>
+  <ul>
+    <li>We do not collect personal information.</li>
+    <li>We do not have an account system. There is nothing to sign up for.</li>
+    <li>We do not sell, share, or transmit your data anywhere.</li>
+    <li>Everything you log &mdash; injections, side effects, foods, doses, refill data &mdash; lives only in your phone&rsquo;s local storage.</li>
+    <li>If you delete the app, that data is gone with it.</li>
+  </ul>
+
+  <h2>2. What data we handle</h2>
+  <p>The App lets you record:</p>
+  <ul>
+    <li>Drug name and dose</li>
+    <li>Body weight (used only to compute a daily protein target)</li>
+    <li>Injection date, time, and body site</li>
+    <li>Side-effect intensity ratings and free-text notes</li>
+    <li>Food / protein intake entries</li>
+    <li>Refill setup (doses per pen, last-filled date)</li>
+    <li>Reminder time preferences</li>
+  </ul>
+  <p>
+    All of this is written to local on-device storage (iOS: Keychain-isolated app sandbox via
+    AsyncStorage). It never leaves your device unless you explicitly export it (export feature is
+    not available in this version).
+  </p>
+
+  <h2>3. What we do NOT do</h2>
+  <ul>
+    <li><strong>No analytics SDKs.</strong> No Firebase, Mixpanel, Amplitude, Segment, or similar.</li>
+    <li><strong>No advertising SDKs.</strong> No Meta, Google Ads, AppLovin, or similar.</li>
+    <li><strong>No crash-reporting SDKs that send data off-device.</strong></li>
+    <li><strong>No tracking across other apps or websites.</strong> We do not call Apple&rsquo;s App Tracking Transparency API because we have no need.</li>
+    <li><strong>No accounts, no email, no phone numbers, no demographics.</strong></li>
+  </ul>
+
+  <h2>4. Local notifications</h2>
+  <p>
+    The App schedules local notifications on your device for shot-day reminders, post-shot side-effect
+    prompts, and refill nudges. These are scheduled through Apple&rsquo;s
+    <code>UNUserNotificationCenter</code> and never leave your device. We do not use push
+    notifications and we do not have a server to send them from.
+  </p>
+
+  <h2>5. Subscriptions and in-app purchases</h2>
+  <p>
+    Shotday Pro is an optional subscription processed exclusively through Apple&rsquo;s App Store. We
+    use RevenueCat as a thin wrapper around Apple&rsquo;s <code>StoreKit</code> to verify the
+    entitlement on your Apple ID. RevenueCat receives an anonymous installation ID (no name, no email,
+    no health data) so that subscriptions can be restored on the same Apple ID across devices. See
+    <a href="https://www.revenuecat.com/privacy/">RevenueCat&rsquo;s privacy policy</a> for details.
+  </p>
+  <p>
+    Apple processes your payment. We never see your credit-card details, billing address, or Apple ID
+    password.
+  </p>
+
+  <h2>6. Children</h2>
+  <p>
+    Shotday is intended for adults managing their own GLP-1 prescription. The App is not directed to
+    children under 13 and we do not knowingly collect any data from children.
+  </p>
+
+  <h2>7. Permissions we ask for</h2>
+  <ul>
+    <li>
+      <strong>Notifications.</strong> Required to deliver the weekly shot-day reminder, the post-shot
+      side-effect prompt, and refill alerts. You can deny this permission and the App still works &mdash;
+      the cards on the home screen continue to remind you, you just won&rsquo;t get push-style alerts.
+    </li>
+  </ul>
+  <p>
+    The App does <strong>not</strong> request: contacts, photos, location, microphone, camera,
+    HealthKit, calendar, or motion data.
+  </p>
+
+  <h2>8. Your rights</h2>
+  <p>
+    Because we do not store or transmit your data, there is nothing for us to delete or hand over on
+    request. To delete every record Shotday has about you: open the App, go to
+    <em>Settings &rarr; Reset all data</em>, or simply delete the App from your device.
+  </p>
+
+  <h2>9. Changes to this policy</h2>
+  <p>
+    If we materially change how the App handles data &mdash; for example, if a future version adds an
+    optional cloud-sync feature &mdash; we will update this page and bump the &ldquo;Last updated&rdquo;
+    date above. Material changes will also be flagged inside the App before they take effect.
+  </p>
+
+  <h2>10. Health disclaimer</h2>
+  <p>
+    Shotday is a tracking tool, not a medical device. It does not provide medical advice, diagnosis,
+    or treatment. Always consult your prescribing physician before starting, stopping, or changing
+    your dose. In an emergency, call your local emergency number.
+  </p>
+
+  <h2>11. Contact</h2>
+  <p>
+    Questions about privacy?
+    Email <a href="mailto:shotday@spinwheelgo.com">shotday@spinwheelgo.com</a>.
+  </p>
+
+  <hr />
+
+  <p style="font-size: 14px; color: var(--muted);">
+    This Privacy Policy is provided for the iOS app &ldquo;Shotday&rdquo;
+    (App Store ID forthcoming). Bundle identifier: <code>com.senthil.shotday</code>.
+  </p>
+</main>
+</body>
+</html>
