@@ -1,10 +1,11 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { configureIap } from './src/iap/iap';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { OnboardingNavigator } from './src/screens/Onboarding/OnboardingNavigator';
 import { ShotdayDbProvider, useShotdayDb } from './src/hooks/useShotdayDb';
@@ -66,6 +67,18 @@ function ThemedRoot(): React.ReactElement {
 }
 
 export default function App(): React.ReactElement {
+  // RevenueCat one-shot configuration. The `EXPO_PUBLIC_REVENUECAT_IOS_KEY`
+  // env var is inlined at bundle time by Expo (any `EXPO_PUBLIC_*` literal
+  // is replaced with its string value during build). In Expo Go and Jest
+  // the var is undefined, and `configureIap` itself is a no-op when the
+  // native module isn't available — so this is safe to call unconditionally.
+  useEffect(() => {
+    const key = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY;
+    if (key) {
+      void configureIap(key);
+    }
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
