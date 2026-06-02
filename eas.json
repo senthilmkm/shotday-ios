@@ -20,14 +20,14 @@
       "distribution": "internal",
       "channel": "preview",
       "ios": {
-        "resourceClass": "m1-medium",
+        "resourceClass": "m-medium",
         "autoIncrement": true
       }
     },
     "production": {
       "channel": "production",
       "ios": {
-        "resourceClass": "m1-medium",
+        "resourceClass": "m-medium",
         "autoIncrement": true
       }
     }

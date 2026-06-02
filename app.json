@@ -43,6 +43,8 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM"
       ]
     },
@@ -54,6 +56,12 @@
         "projectId": "3db257f0-3c91-430f-a296-98d711aa822f"
       }
     },
-    "owner": "senthil930"
+    "owner": "senthil930",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3db257f0-3c91-430f-a296-98d711aa822f"
+    }
   }
 }
