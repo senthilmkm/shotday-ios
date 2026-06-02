@@ -185,7 +185,7 @@ App Store Connect → your app → **TestFlight**.
 1. Wait for the just-uploaded build to finish processing (~10-30 min).
 2. Add **Test Information**:
    - Beta App Description: copy from `app-store-listing.md` → Description, trimmed to one paragraph.
-   - Email: `shotday@spinwheelgo.com`.
+   - Email: `senthil930@gmail.com`.
    - Privacy Policy URL: `https://www.spinwheelgo.com/shotday/privacy.html`.
 3. Add yourself as an **Internal Tester** (no review required for internal).
 4. Install the TestFlight app on your iPhone, sign in with the Apple ID, accept the invite, and run.

@@ -99,7 +99,7 @@ First release. Five focused features for your weekly GLP-1 routine:
 • Dose escalation ladder with eligibility tracking
 • Refill alarm based on doses logged
 
-Built private-by-design — no account, no cloud, no analytics. 14-day free trial included. Thanks for being an early user. If you spot anything broken, email shotday@spinwheelgo.com.
+Built private-by-design — no account, no cloud, no analytics. 14-day free trial included. Thanks for being an early user. If you spot anything broken, email senthil930@gmail.com.
 ```
 
 ---
@@ -152,5 +152,5 @@ To preview an expired-trial state without waiting 14 days:
 
 The body-diagram screen (Injection logging) and the side-effect log are the two features that may benefit from VoiceOver review — every tappable injection zone has an accessibility label naming the body part.
 
-If anything is unclear, please email shotday@spinwheelgo.com — we monitor the inbox during business hours US Pacific.
+If anything is unclear, please email senthil930@gmail.com — we monitor the inbox during business hours US Pacific.
 ```
