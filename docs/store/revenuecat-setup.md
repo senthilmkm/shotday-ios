@@ -129,10 +129,9 @@ Offerings let you change which products show on the paywall without an app updat
 
 Tell the agent the key. They'll:
 
-- Add `.env` (or `.env.local`) with `EXPO_PUBLIC_REVENUECAT_IOS_KEY=<key>`
-- Install `react-native-purchases` and `react-native-purchases-ui` (if needed)
+- Add `.env.local` (gitignored) with `EXPO_PUBLIC_REVENUECAT_IOS_KEY=<key>`
+- Verify `react-native-purchases` is installed
 - Wire `configureIap()` into `App.tsx` so it runs on app start
-- Add the env var to `eas.json` build profiles so EAS picks it up at build time
 
 Don't paste the key into chat. Save it to a temp file like the GitHub token flow:
 
@@ -141,6 +140,19 @@ C:\Users\senth\Desktop\rc-key.txt
 ```
 
 Then tell the agent "saved" and they'll read it, write the env files, and delete it.
+
+### After EAS CLI is installed (later)
+
+`.env.local` works for local Expo dev only. EAS Build runs in the cloud and
+doesn't see local `.env.*` files. Register the key as an EAS Secret once:
+
+```bash
+npx eas secret:create --scope project --name EXPO_PUBLIC_REVENUECAT_IOS_KEY --type string
+```
+
+EAS CLI prompts for the value, stores it on EAS infra, and auto-injects it
+into every cloud build. Don't run this until EAS CLI is installed and
+authenticated (covered in `app-store-connect-setup.md` §6).
 
 ---
 
