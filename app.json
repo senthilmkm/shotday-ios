@@ -3,7 +3,7 @@
     "name": "Shotday",
     "slug": "shotday",
     "scheme": "shotday",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -31,7 +31,8 @@
         {
           "color": "#0F766E"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "android": {
       "adaptiveIcon": {
@@ -42,8 +43,6 @@
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM"
       ]
