@@ -11,6 +11,10 @@
 //     URGENT alert until they update lastFilledAt (i.e., picked it up).
 //   - First-time setup: with no refill record at all, the home card should
 //     show a CTA, not a stale number.
+//   - Single-dose vials: thresholds MUST scale with dosesPerPen, otherwise
+//     a 1-dose tirzepatide vial trips URGENT the moment it's filled
+//     (because dosesRemaining == 1 == URGENT_THRESHOLD). A 1-dose vial
+//     has no meaningful "low" state — it's either ready or empty.
 
 import type { Injection, RefillSchedule } from '../types/domain';
 
@@ -29,11 +33,28 @@ export interface RefillStatus {
   alertLevel: RefillAlertLevel;
 }
 
-/** Threshold (inclusive) below which we surface the URGENT alert. */
-export const URGENT_THRESHOLD = 1;
-
-/** Threshold (inclusive) for the gentle INFO heads-up. */
-export const INFO_THRESHOLD = 2;
+/**
+ * URGENT and INFO thresholds scaled to pen size.
+ *
+ *   - 1-dose vials   → no URGENT or INFO; EMPTY at 0.
+ *   - 2-dose pens    → URGENT at 1.
+ *   - 3–4 dose pens  → URGENT at 1, INFO at 2 (semaglutide default).
+ *   - 5+ dose pens   → URGENT at ~25 % remaining, INFO at ~50 %.
+ *
+ * `urgent === 0` means "never trip URGENT before EMPTY". The threshold
+ * is applied with `dosesRemaining > 0 && dosesRemaining <= urgent`.
+ */
+export function thresholdsForPen(
+  dosesPerPen: number,
+): { urgent: number; info: number } {
+  if (dosesPerPen <= 1) return { urgent: 0, info: 0 };
+  if (dosesPerPen === 2) return { urgent: 1, info: 1 };
+  if (dosesPerPen <= 4) return { urgent: 1, info: 2 };
+  return {
+    urgent: Math.max(1, Math.ceil(dosesPerPen * 0.25)),
+    info: Math.max(2, Math.ceil(dosesPerPen * 0.5)),
+  };
+}
 
 /**
  * Computes the refill status from current state.
@@ -61,12 +82,14 @@ export function refillStatus(
   ).length;
   const dosesRemaining = Math.max(0, refill.dosesPerPen - usedSinceFill);
 
+  const { urgent, info } = thresholdsForPen(refill.dosesPerPen);
+
   let alertLevel: RefillAlertLevel = 'NONE';
   if (dosesRemaining === 0) {
     alertLevel = 'EMPTY';
-  } else if (dosesRemaining <= URGENT_THRESHOLD) {
+  } else if (urgent > 0 && dosesRemaining <= urgent) {
     alertLevel = refill.refillRequested ? 'INFO' : 'URGENT';
-  } else if (dosesRemaining <= INFO_THRESHOLD) {
+  } else if (info > 0 && dosesRemaining <= info) {
     alertLevel = 'INFO';
   }
 

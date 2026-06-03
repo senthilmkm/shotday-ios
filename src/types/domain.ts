@@ -56,11 +56,20 @@ export interface Injection {
 // Side-effect log
 // ────────────────────────────────────────────────────────────────────
 
+/**
+ * Slider-style metrics (intensity 1–5). MOOD + ANXIETY were added
+ * because Wegovy carries an FDA black-box warning for depression /
+ * suicidal ideation and "food noise / mood swings" are among the
+ * most-reported GLP-1 effects on patient forums. Logging zero data
+ * about them was a real clinical gap.
+ */
 export const SIDE_EFFECT_METRICS = [
   'NAUSEA',
   'FATIGUE',
   'CONSTIPATION',
   'APPETITE_SUPPRESSION',
+  'MOOD',
+  'ANXIETY',
 ] as const;
 
 export type SideEffectMetric = typeof SIDE_EFFECT_METRICS[number];
@@ -79,8 +88,14 @@ export interface SideEffectEntry {
   id: string;
   /** ISO-8601 timestamp. */
   loggedAt: string;
-  /** Day after the most recent injection: 1, 2, or 3. */
-  dayAfterShot: 1 | 2 | 3;
+  /**
+   * Day after the most recent injection. Was originally restricted to
+   * 1..3 to match a too-narrow side-effect window; widened to 1..7
+   * so reports through the full weekly cycle are stamped with their
+   * real day. Stored as `number` (still always 1..7 in practice) to
+   * avoid future TypeScript constraint bumps when the window grows.
+   */
+  dayAfterShot: number;
   /** 1–5 sliders. Defaults to 1 ("none") if not set. */
   metrics: Record<SideEffectMetric, number>;
   /** Multi-select chips that were toggled on. */
@@ -161,10 +176,26 @@ export interface UserProfile {
   /** Body weight, used to compute protein target only. */
   weight: number;
   weightUnit: WeightUnit;
+  /**
+   * ISO timestamp of the last weight update. `null` for legacy
+   * profiles that pre-date this field. Used to nudge "has your
+   * weight changed?" after ~60 days so the protein target stays
+   * calibrated to current body weight rather than starting weight.
+   */
+  weightUpdatedAt: string | null;
   /** The day of the week the user takes their shot. */
   shotDay: DayOfWeek;
   /** Theme preference. AUTO = follow iOS system. */
   themePreference: ThemePreference;
+  /**
+   * Single switch the user can flip in Settings to silence ALL
+   * scheduled local notifications (shot reminder, side-effect
+   * prompt, refill nudge). When false, the notification scheduler
+   * MUST clear the plan and skip future scheduling — granting OS
+   * permission alone shouldn't reactivate notifications the user
+   * declined inside the app.
+   */
+  notificationsEnabled: boolean;
   /** Hour-of-day for the morning shot reminder. Default 9 (9 AM). */
   shotReminderHour: number;
   /** Hour-of-day for the evening side-effect prompt. Default 20 (8 PM). */
@@ -218,10 +249,12 @@ export const DEFAULT_PROFILE: UserProfile = {
   drug: 'OZEMPIC',
   currentDoseMg: 0,
   currentDoseLabel: '',
-  weight: 200,
+  weight: 0,
   weightUnit: 'LB',
+  weightUpdatedAt: null,
   shotDay: 'SUNDAY',
   themePreference: 'AUTO',
+  notificationsEnabled: true,
   shotReminderHour: 9,
   sideEffectPromptHour: 20,
   refillReminderHour: 9,

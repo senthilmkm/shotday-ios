@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
+import { X } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
@@ -19,6 +20,7 @@ import { Button } from '../../components/Button';
 import { DOSE_CHANGE_DISCLAIMER } from '../../copy/disclaimers';
 import {
   daysUntilEligibleToBump,
+  isOffLadder,
   ladderIdForDrug,
   nextRung,
   rungIndexForMg,
@@ -41,8 +43,9 @@ export function DoseLadderScreen(): React.ReactElement {
   const rungs = rungsForDrug(db.profile.drug);
   const isCustom = rungs.length === 0;
   const currentMg = db.profile.currentDoseMg;
-  const currentIdx = rungIndexForMg(ladder, currentMg);
-  const upcoming = nextRung(ladder, currentMg);
+  const currentIdx = rungIndexForMg(db.profile.drug, currentMg);
+  const upcoming = nextRung(db.profile.drug, currentMg);
+  const stranded = isOffLadder(db.profile.drug, currentMg);
 
   const lastChange = db.doseHistory[db.doseHistory.length - 1];
   const today = useMemo(() => new Date(), []);
@@ -108,23 +111,51 @@ export function DoseLadderScreen(): React.ReactElement {
   };
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-        <Text style={[theme.typography.title, { color: theme.colors.text }]}>Dose ladder</Text>
-        <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
-          {db.profile.drug === 'OTHER' && db.profile.customDrugName
-            ? db.profile.customDrugName
-            : prettyDrug(db.profile.drug)}
-          {!isCustom && ` · ${ladder === 'SEMAGLUTIDE' ? 'semaglutide' : 'tirzepatide'}`}
-        </Text>
+    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['top', 'bottom']}>
+      <View style={[styles.headerRow, { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[theme.typography.title, { color: theme.colors.text }]}>Dose ladder</Text>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
+            {db.profile.drug === 'OTHER' && db.profile.customDrugName
+              ? db.profile.customDrugName
+              : prettyDrug(db.profile.drug)}
+            {!isCustom && ` · ${ladder === 'SEMAGLUTIDE' ? 'semaglutide' : 'tirzepatide'}`}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Close dose ladder"
+          style={({ pressed }) => [
+            styles.closeButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: 999,
+              opacity: pressed ? 0.6 : 1,
+            },
+          ]}
+        >
+          <X size={18} color={theme.colors.text} strokeWidth={2} />
+        </Pressable>
+      </View>
+      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}>
 
-        {/* ─── Eligibility banner ───────────────────────────── */}
+        {/* ─── Eligibility / off-ladder banner ──────────────── */}
         <View
           style={[
             styles.banner,
             {
-              backgroundColor: eligible ? theme.colors.surfaceMuted : theme.colors.surface,
-              borderColor: eligible ? theme.colors.primary : theme.colors.border,
+              backgroundColor: stranded
+                ? theme.colors.surface
+                : eligible
+                  ? theme.colors.surfaceMuted
+                  : theme.colors.surface,
+              borderColor: stranded
+                ? theme.colors.warning
+                : eligible
+                  ? theme.colors.primary
+                  : theme.colors.border,
               borderRadius: theme.radii.md,
             },
           ]}
@@ -132,19 +163,27 @@ export function DoseLadderScreen(): React.ReactElement {
           <Text
             style={[
               theme.typography.captionMedium,
-              { color: eligible ? theme.colors.primary : theme.colors.textMuted },
+              {
+                color: stranded
+                  ? theme.colors.warning
+                  : eligible
+                    ? theme.colors.primary
+                    : theme.colors.textMuted,
+              },
             ]}
           >
-            {eligible ? 'ELIGIBLE TO BUMP' : 'NOT YET'}
+            {stranded ? 'OFF THE STANDARD LADDER' : eligible ? 'ELIGIBLE TO BUMP' : 'NOT YET'}
           </Text>
           <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>
-            {!lastChange
-              ? `Set a starting dose first.`
-              : eligible
-                ? upcoming
-                  ? `You can move up to ${upcoming.label} when ready.`
-                  : 'You\u2019re at the top of the ladder.'
-                : `${daysToBump} day${daysToBump === 1 ? '' : 's'} until you\u2019ve been on ${db.profile.currentDoseLabel} for the standard ${STANDARD_ESCALATION_INTERVAL_DAYS}-day window.`}
+            {stranded
+              ? `${db.profile.currentDoseLabel || `${currentMg} mg`} isn\u2019t a standard ${prettyDrug(db.profile.drug).toLowerCase()} dose. Pick a rung below to align with the FDA schedule, or use \u201CEnter a custom dose\u201D if your prescriber set this on purpose.`
+              : !lastChange
+                ? `Set a starting dose first.`
+                : eligible
+                  ? upcoming
+                    ? `You can move up to ${upcoming.label} when ready.`
+                    : 'You\u2019re at the top of the ladder.'
+                  : `${daysToBump} day${daysToBump === 1 ? '' : 's'} until you\u2019ve been on ${db.profile.currentDoseLabel} for the standard ${STANDARD_ESCALATION_INTERVAL_DAYS}-day window.`}
           </Text>
         </View>
 
@@ -152,7 +191,6 @@ export function DoseLadderScreen(): React.ReactElement {
         {!isCustom ? (
           <View style={{ marginTop: 24 }}>
             {[...rungs].reverse().map((rung) => {
-              const idxFromTop = rungs.length - 1 - rungs.findIndex((r) => r.mg === rung.mg);
               const isCurrent = rung.mg === currentMg;
               const isPast = currentIdx >= 0 && rung.mg < currentMg;
               const isFuture = currentIdx >= 0 && rung.mg > currentMg;
@@ -220,18 +258,8 @@ export function DoseLadderScreen(): React.ReactElement {
                   <View style={styles.rungLeft}>
                     <Text
                       style={[
-                        theme.typography.captionMedium,
-                        {
-                          color: isCurrent ? theme.colors.onPrimary : theme.colors.textMuted,
-                        },
-                      ]}
-                    >
-                      RUNG {rungs.length - idxFromTop}
-                    </Text>
-                    <Text
-                      style={[
                         theme.typography.heading,
-                        { color: isCurrent ? theme.colors.onPrimary : theme.colors.text, marginTop: 2 },
+                        { color: isCurrent ? theme.colors.onPrimary : theme.colors.text },
                       ]}
                     >
                       {rung.label}
@@ -319,14 +347,6 @@ export function DoseLadderScreen(): React.ReactElement {
         )}
       </ScrollView>
 
-      <Button
-        label="Done"
-        fullWidth
-        size="lg"
-        onPress={() => navigation.goBack()}
-        style={{ margin: theme.spacing.lg, marginTop: 0 }}
-      />
-
       {/* ─── Custom-dose modal ─────────────────────────── */}
       <Modal animationType="slide" transparent visible={customOpen} onRequestClose={() => setCustomOpen(false)}>
         <Pressable
@@ -399,6 +419,14 @@ function prettyDate(d: Date): string {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  closeButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
   banner: {
     marginTop: 24,
     padding: 14,

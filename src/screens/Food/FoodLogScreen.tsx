@@ -1,5 +1,4 @@
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
 import {
@@ -28,13 +27,10 @@ import { proteinTargetGrams } from '../../domain/protein';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { FoodEntry } from '../../types/domain';
-import type { AppStackParamList } from '../../navigation/AppNavigator';
-
-type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 export function FoodLogScreen(): React.ReactElement {
   const theme = useTheme();
-  const navigation = useNavigation<Nav>();
+  const tabBarHeight = useBottomTabBarHeight();
   const { db, updateDb } = useShotdayDb();
   const now = new Date();
 
@@ -95,7 +91,7 @@ export function FoodLogScreen(): React.ReactElement {
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
+      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: tabBarHeight + theme.spacing.lg }}>
         <Text style={[theme.typography.title, { color: theme.colors.text }]}>Today's protein</Text>
 
         {/* ─── Gauge ───────────────────────────────────── */}
@@ -247,14 +243,6 @@ export function FoodLogScreen(): React.ReactElement {
         </Text>
       </ScrollView>
 
-      <Button
-        label="Done"
-        fullWidth
-        size="lg"
-        onPress={() => navigation.goBack()}
-        style={{ margin: theme.spacing.lg, marginTop: 0 }}
-      />
-
       {/* ─── Custom entry modal ─────────────────────── */}
       <Modal
         animationType="slide"
@@ -307,7 +295,7 @@ export function FoodLogScreen(): React.ReactElement {
               onChangeText={setCustomGrams}
               placeholder="protein grams"
               placeholderTextColor={theme.colors.textMuted}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
               accessibilityLabel="Protein in grams"
               style={[
                 styles.modalInput,

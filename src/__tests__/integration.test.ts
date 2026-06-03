@@ -149,7 +149,7 @@ describe('integration: onboarding', () => {
     let db = freshDb();
     db = applyOnboarding(db, { currentDoseMg: 0, currentDoseLabel: '' });
     // Home screen should not crash with currentDoseMg=0
-    expect(nextRung(ladderIdForDrug(db.profile.drug), 0)).toBeNull();
+    expect(nextRung(db.profile.drug, 0)).toBeNull();
     expect(db.profile.currentDoseLabel).toBe('');
   });
 });
@@ -188,14 +188,15 @@ describe('integration: shot day flow', () => {
 });
 
 describe('integration: side-effect window', () => {
-  it('builds an entry on day 1, 2, 3 and rejects outside the window', () => {
+  it('builds an entry across the full 1..7 day window and rejects day 0 / day 8+', () => {
     const shot = new Date(2026, 5, 7, 9, 0); // Sunday 9 AM
     const history: Injection[] = [
       { id: 'inj1', takenAt: shot.toISOString(), zone: 'BELLY_UL', doseMg: 0.5 },
     ];
 
-    // Day 1, 2, 3
-    for (const dayOffset of [1, 2, 3]) {
+    // Days 1 through 7 inclusive — Wegovy 2.4 mg patients commonly
+    // report symptoms through day 5–6, so we need the full window.
+    for (const dayOffset of [1, 2, 3, 4, 5, 6, 7]) {
       const now = new Date(2026, 5, 7 + dayOffset, 20, 0);
       const entry = buildPostShotEntry({
         metrics: { ...defaultMetrics(), NAUSEA: 4 },
@@ -222,14 +223,14 @@ describe('integration: side-effect window', () => {
       }),
     ).toBeNull();
 
-    // Day 4+ → null
+    // Day 8+ → null (next weekly cycle, ad-hoc)
     expect(
       buildPostShotEntry({
         metrics: defaultMetrics(),
         chips: [],
         customSymptoms: [],
         injections: history,
-        now: new Date(2026, 5, 11, 9, 0),
+        now: new Date(2026, 5, 15, 9, 0),
       }),
     ).toBeNull();
   });
@@ -457,10 +458,15 @@ describe('integration: persistence round-trip', () => {
 // ────────────────────────────────────────────────────────────────────
 
 describe('integration: home top-card priority', () => {
-  function topMode(db: ShotdayDb, now: Date): 'POST_SHOT' | 'SHOT_DAY' | 'COUNTDOWN' {
+  // Mirrors HomeScreen's `topMode` logic. Kept inline so the test can
+  // verify the priority order without importing React Native.
+  type TopMode = 'POST_SHOT' | 'SHOT_DAY_LOGGED' | 'SHOT_DAY' | 'COUNTDOWN';
+  function topMode(db: ShotdayDb, now: Date): TopMode {
     if (dayAfterShot(db.injections, now) !== null) return 'POST_SHOT';
-    if (daysUntilNext(db.profile.shotDay, now) === 0) return 'SHOT_DAY';
-    return 'COUNTDOWN';
+    const isShotDay = daysUntilNext(db.profile.shotDay, now) === 0;
+    if (!isShotDay) return 'COUNTDOWN';
+    const sinceLast = daysSinceLastShot(db.injections, now);
+    return sinceLast === 0 ? 'SHOT_DAY_LOGGED' : 'SHOT_DAY';
   }
 
   it('shows COUNTDOWN with no history and not-shot-day', () => {
@@ -475,25 +481,42 @@ describe('integration: home top-card priority', () => {
     expect(topMode(db, monday)).toBe('SHOT_DAY');
   });
 
-  it('shows POST_SHOT after a shot has been logged in the last 1-3 days', () => {
+  it('shows SHOT_DAY_LOGGED on shot day when a shot was already logged today', () => {
+    // Sunday Jun 7 @ 9 AM shot; opening home Sunday Jun 7 @ 11 AM
+    // should NOT invite the user to log again — it should celebrate
+    // the logged shot and route taps to History.
+    let db = applyOnboarding(freshDb(), { shotDay: 'SUNDAY' });
+    const shotAt = new Date(2026, 5, 7, 9, 0);
+    db = logInjection(db, 'BELLY_UL', shotAt);
+    const elevenAm = new Date(2026, 5, 7, 11, 0);
+    expect(topMode(db, elevenAm)).toBe('SHOT_DAY_LOGGED');
+  });
+
+  it('shows POST_SHOT throughout the 1..7 day window after a shot', () => {
     let db = applyOnboarding(freshDb(), { shotDay: 'SUNDAY' });
     db = logInjection(db, 'BELLY_UL', new Date(2026, 5, 7, 9, 0));
     const day1 = new Date(2026, 5, 8, 20, 0);
     const day3 = new Date(2026, 5, 10, 20, 0);
+    const day5 = new Date(2026, 5, 12, 20, 0);
+    const day7 = new Date(2026, 5, 14, 20, 0);
     expect(topMode(db, day1)).toBe('POST_SHOT');
     expect(topMode(db, day3)).toBe('POST_SHOT');
+    expect(topMode(db, day5)).toBe('POST_SHOT');
+    expect(topMode(db, day7)).toBe('POST_SHOT');
   });
 
   it('falls back to COUNTDOWN once the post-shot window passes', () => {
     let db = applyOnboarding(freshDb(), { shotDay: 'SUNDAY' });
     db = logInjection(db, 'BELLY_UL', new Date(2026, 5, 7, 9, 0));
-    const day5 = new Date(2026, 5, 12, 20, 0);
-    expect(topMode(db, day5)).toBe('COUNTDOWN');
+    // Day 8 (Mon Jun 15) is past the window AND not a shot day → COUNTDOWN.
+    const day8 = new Date(2026, 5, 15, 20, 0);
+    expect(topMode(db, day8)).toBe('COUNTDOWN');
   });
 
-  it('still shows SHOT_DAY when both conditions could match, after enough days have passed', () => {
-    // Edge case: shot on Sunday week 1, today is Sunday week 3. POST_SHOT window
-    // is over (14 days passed), so it should be SHOT_DAY again.
+  it('returns SHOT_DAY when both conditions could match, after enough days have passed', () => {
+    // Shot on Sunday week 1, today is Sunday week 3. POST_SHOT window
+    // is over (14 days passed) and no shot has been logged today, so
+    // it should be SHOT_DAY again.
     let db = applyOnboarding(freshDb(), { shotDay: 'SUNDAY' });
     db = logInjection(db, 'BELLY_UL', new Date(2026, 5, 7, 9, 0));
     const sundayWeek3 = new Date(2026, 5, 21, 8, 0);
@@ -518,9 +541,12 @@ describe('integration: dose ladder bump flow', () => {
     };
   }
 
-  it('walks the semaglutide ladder over a 4-month escalation', () => {
+  it('walks the Wegovy ladder over a 4-month escalation', () => {
+    // Wegovy ladder has 5 rungs (0.25 → 0.5 → 1.0 → 1.7 → 2.4).
+    // Ozempic is intentionally tested separately because its top dose
+    // is 2.0 mg and it does NOT include the 1.7 / 2.4 rungs.
     let db = applyOnboarding(freshDb(), {
-      drug: 'OZEMPIC',
+      drug: 'WEGOVY',
       currentDoseMg: 0.25,
       currentDoseLabel: '0.25 mg',
     });
@@ -533,7 +559,7 @@ describe('integration: dose ladder bump flow', () => {
     // Month 2 → bump to 1.0
     db = bumpDose(db, '1.0 mg', 1.0, new Date(2026, 6, 27));
 
-    // Month 3 → bump to 1.7
+    // Month 3 → bump to 1.7 (Wegovy-only intermediate)
     db = bumpDose(db, '1.7 mg', 1.7, new Date(2026, 7, 24));
 
     // Month 4 → bump to 2.4 (top)
@@ -541,7 +567,7 @@ describe('integration: dose ladder bump flow', () => {
 
     expect(db.doseHistory).toHaveLength(5);
     expect(db.profile.currentDoseMg).toBe(2.4);
-    expect(nextRung(ladderIdForDrug(db.profile.drug), 2.4)).toBeNull();
+    expect(nextRung(db.profile.drug, 2.4)).toBeNull();
     // The labels of every history entry are preserved.
     expect(db.doseHistory.map((h) => h.label)).toEqual([
       '0.25 mg',
@@ -552,10 +578,27 @@ describe('integration: dose ladder bump flow', () => {
     ]);
   });
 
+  it('walks the Ozempic ladder ending at 2.0 mg, NOT 2.4 mg', () => {
+    let db = applyOnboarding(freshDb(), {
+      drug: 'OZEMPIC',
+      currentDoseMg: 0.25,
+      currentDoseLabel: '0.25 mg',
+    });
+    db = bumpDose(db, '0.25 mg', 0.25, new Date(2026, 5, 1));
+    db = bumpDose(db, '0.5 mg', 0.5, new Date(2026, 5, 29));
+    db = bumpDose(db, '1.0 mg', 1.0, new Date(2026, 6, 27));
+    // Ozempic skips 1.7 and tops at 2.0
+    db = bumpDose(db, '2.0 mg', 2.0, new Date(2026, 7, 24));
+
+    expect(db.profile.currentDoseMg).toBe(2.0);
+    expect(nextRung(db.profile.drug, 2.0)).toBeNull();
+    expect(nextRung(db.profile.drug, 1.0)).toEqual({ label: '2.0 mg', mg: 2.0 });
+  });
+
   it('supports dropping back down a rung (doctor-prescribed reduction)', () => {
     let db = applyOnboarding(freshDb(), { currentDoseMg: 1.0, currentDoseLabel: '1.0 mg' });
     db = bumpDose(db, '1.0 mg', 1.0, new Date(2026, 5, 1));
-    const drop = previousRung(ladderIdForDrug(db.profile.drug), db.profile.currentDoseMg);
+    const drop = previousRung(db.profile.drug, db.profile.currentDoseMg);
     expect(drop?.label).toBe('0.5 mg');
     db = bumpDose(db, drop!.label, drop!.mg, new Date(2026, 5, 15));
     expect(db.profile.currentDoseMg).toBe(0.5);

@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { configureIap } from './src/iap/iap';
 import { AppNavigator } from './src/navigation/AppNavigator';
+import { navigationRef } from './src/navigation/navigationRef';
 import { OnboardingNavigator } from './src/screens/Onboarding/OnboardingNavigator';
 import { ShotdayDbProvider, useShotdayDb } from './src/hooks/useShotdayDb';
 import { useNotificationSync } from './src/notifications/useNotificationSync';
@@ -27,6 +28,7 @@ function Root(): React.ReactElement {
 
   return (
     <NavigationContainer
+      ref={navigationRef}
       theme={{
         dark: theme.mode === 'dark',
         colors: {

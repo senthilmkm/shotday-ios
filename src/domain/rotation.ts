@@ -10,10 +10,22 @@
 import { INJECTION_ZONES, type Injection, type InjectionZone } from '../types/domain';
 
 /**
+ * Default lookback for "recently used". Bumped from 1 → 4 because
+ * lipohypertrophy guidance is "rotate across the body for ~one
+ * month before re-using a zone", not "skip last week and you're
+ * fine". With 8 anatomical zones, excluding the last 4 still leaves
+ * 4 options — plenty of choice — but cuts repeat-zone risk in half.
+ */
+export const DEFAULT_ROTATION_LOOKBACK = 4;
+
+/** Threshold for the "hot zone" warning (≥ this many uses in last 4 weeks). */
+export const HOT_ZONE_USES = 2;
+
+/**
  * Picks the next injection zone the user should use, given their recent
  * history. Strategy:
  *   1. Exclude zones used in the last `lookbackInjections` history entries
- *      (default 1 — never the same zone two weeks running).
+ *      (default 4 — full monthly rotation across the body).
  *   2. From the remaining zones, pick the one used LEAST recently (or never).
  *   3. Stable tiebreaker: order in INJECTION_ZONES (so behavior is deterministic
  *      for tests + the user sees a predictable rotation pattern across weeks).
@@ -23,7 +35,7 @@ import { INJECTION_ZONES, type Injection, type InjectionZone } from '../types/do
  */
 export function suggestNextZone(
   history: Injection[],
-  lookbackInjections: number = 1,
+  lookbackInjections: number = DEFAULT_ROTATION_LOOKBACK,
 ): InjectionZone {
   // Anatomical zones only — exclude OTHER from suggestions.
   const candidates: InjectionZone[] = INJECTION_ZONES.filter((z) => z !== 'OTHER');
@@ -61,6 +73,35 @@ export function suggestNextZone(
     }
   }
   return best;
+}
+
+/**
+ * Returns zones the user has hit ≥`HOT_ZONE_USES` times in the last
+ * `lookbackInjections` injections. Used by BodyDiagramScreen to flag
+ * a zone as "you've been here a lot recently" before they tap it.
+ *
+ * Returns an empty set when history is shorter than the lookback —
+ * not enough signal to warn yet.
+ */
+export function hotZones(
+  history: Injection[],
+  lookbackInjections: number = DEFAULT_ROTATION_LOOKBACK,
+): Set<InjectionZone> {
+  const out = new Set<InjectionZone>();
+  if (history.length < lookbackInjections) return out;
+
+  const sorted = [...history].sort(
+    (a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime(),
+  );
+  const recent = sorted.slice(0, lookbackInjections);
+  const counts = new Map<InjectionZone, number>();
+  for (const i of recent) {
+    counts.set(i.zone, (counts.get(i.zone) ?? 0) + 1);
+  }
+  for (const [zone, count] of counts) {
+    if (count >= HOT_ZONE_USES) out.add(zone);
+  }
+  return out;
 }
 
 /**

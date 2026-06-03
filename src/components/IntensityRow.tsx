@@ -18,9 +18,9 @@ const INTENSITY_LABELS: Record<number, string> = {
 };
 
 /**
- * 1–5 intensity selector. A row of 5 dots — tap to set. Default is 1
- * (rendered as a hollow ring so it doesn't suggest "selected" by accident).
- * No drag, no slider. Mobile-friendly and accessible.
+ * 1–5 intensity selector. A row of 5 dots — single-select. Default is 1
+ * ("None"), which shows no filled dot. Tapping any dot fills only that
+ * one with a color that maps to severity (green → yellow → red).
  */
 export function IntensityRow({ label, value, onChange }: IntensityRowProps): React.ReactElement {
   const theme = useTheme();
@@ -43,8 +43,8 @@ export function IntensityRow({ label, value, onChange }: IntensityRowProps): Rea
       </View>
       <View style={styles.dotRow}>
         {[1, 2, 3, 4, 5].map((rank) => {
-          const filled = rank <= value && value > 1;
           const isCurrent = rank === value;
+          const filled = isCurrent && value > 1;
           return (
             <Pressable
               key={rank}
@@ -59,8 +59,13 @@ export function IntensityRow({ label, value, onChange }: IntensityRowProps): Rea
               style={({ pressed }) => [
                 styles.dot,
                 {
-                  backgroundColor: filled ? colorFor(value) : 'transparent',
-                  borderColor: filled ? colorFor(value) : theme.colors.border,
+                  backgroundColor: filled ? colorFor(rank) : 'transparent',
+                  borderColor: filled
+                    ? colorFor(rank)
+                    : isCurrent
+                      ? theme.colors.text
+                      : theme.colors.border,
+                  borderWidth: isCurrent ? 2.5 : 2,
                   transform: [{ scale: pressed ? 0.92 : 1 }],
                 },
               ]}

@@ -3,10 +3,12 @@ import {
   calendarDaysBetween,
   dateOnly,
   dayAfterShot,
+  dayAfterShotClamped,
   daysSinceLastShot,
   daysUntilNext,
   isInPostShotWindow,
   mostRecentInjection,
+  POST_SHOT_WINDOW_DAYS,
 } from './dateMath';
 
 function inj(takenAt: string, id = takenAt): Injection {
@@ -72,26 +74,59 @@ describe('dayAfterShot', () => {
     expect(dayAfterShot(history, new Date(2026, 5, 1, 21, 0))).toBeNull();
   });
 
-  it('returns 1, 2, 3 in the prompt window', () => {
+  it('returns the day number throughout the 1..7 window', () => {
     const history = [inj('2026-06-01T09:00:00')];
     expect(dayAfterShot(history, new Date(2026, 5, 2, 8, 0))).toBe(1);
     expect(dayAfterShot(history, new Date(2026, 5, 3, 8, 0))).toBe(2);
     expect(dayAfterShot(history, new Date(2026, 5, 4, 8, 0))).toBe(3);
+    expect(dayAfterShot(history, new Date(2026, 5, 5, 8, 0))).toBe(4);
+    expect(dayAfterShot(history, new Date(2026, 5, 6, 8, 0))).toBe(5);
+    expect(dayAfterShot(history, new Date(2026, 5, 7, 8, 0))).toBe(6);
+    expect(dayAfterShot(history, new Date(2026, 5, 8, 8, 0))).toBe(7);
   });
 
-  it('returns null beyond day 3', () => {
+  it('returns null beyond day 7 (next weekly cycle)', () => {
     const history = [inj('2026-06-01T09:00:00')];
-    expect(dayAfterShot(history, new Date(2026, 5, 5, 8, 0))).toBeNull();
-    expect(dayAfterShot(history, new Date(2026, 5, 8, 8, 0))).toBeNull();
+    expect(dayAfterShot(history, new Date(2026, 5, 9, 8, 0))).toBeNull();
+    expect(dayAfterShot(history, new Date(2026, 5, 15, 8, 0))).toBeNull();
+  });
+
+  it('exposes POST_SHOT_WINDOW_DAYS = 7', () => {
+    expect(POST_SHOT_WINDOW_DAYS).toBe(7);
+  });
+});
+
+describe('dayAfterShotClamped', () => {
+  it('returns null when no history', () => {
+    expect(dayAfterShotClamped([], new Date(2026, 5, 1))).toBeNull();
+  });
+
+  it('returns null on shot day itself (day 0)', () => {
+    const history = [inj('2026-06-01T09:00:00')];
+    expect(dayAfterShotClamped(history, new Date(2026, 5, 1, 21, 0))).toBeNull();
+  });
+
+  it('returns the actual day inside the 1..7 window', () => {
+    const history = [inj('2026-06-01T09:00:00')];
+    expect(dayAfterShotClamped(history, new Date(2026, 5, 2, 8, 0))).toBe(1);
+    expect(dayAfterShotClamped(history, new Date(2026, 5, 8, 8, 0))).toBe(7);
+  });
+
+  it('clamps to 7 beyond the window so symptom logs always carry a real day stamp', () => {
+    const history = [inj('2026-06-01T09:00:00')];
+    expect(dayAfterShotClamped(history, new Date(2026, 5, 12, 8, 0))).toBe(7);
+    expect(dayAfterShotClamped(history, new Date(2026, 6, 1, 8, 0))).toBe(7);
   });
 });
 
 describe('isInPostShotWindow', () => {
-  it('mirrors dayAfterShot non-null', () => {
+  it('mirrors dayAfterShot non-null across the full 1..7 window', () => {
     const history = [inj('2026-06-01T09:00:00')];
     expect(isInPostShotWindow(history, new Date(2026, 5, 1, 21, 0))).toBe(false);
     expect(isInPostShotWindow(history, new Date(2026, 5, 2, 8, 0))).toBe(true);
-    expect(isInPostShotWindow(history, new Date(2026, 5, 5, 8, 0))).toBe(false);
+    expect(isInPostShotWindow(history, new Date(2026, 5, 5, 8, 0))).toBe(true);
+    expect(isInPostShotWindow(history, new Date(2026, 5, 8, 8, 0))).toBe(true);
+    expect(isInPostShotWindow(history, new Date(2026, 5, 9, 8, 0))).toBe(false);
   });
 });
 

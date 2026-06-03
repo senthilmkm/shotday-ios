@@ -40,20 +40,49 @@ export function mostRecentInjection(history: Injection[]): Injection | null {
 }
 
 /**
- * "Which day-after-shot is it right now?"
- *   - 0  → same calendar day as the shot (we don't prompt yet)
- *   - 1, 2, 3 → in the post-shot side-effect window
- *   - >3 or no history → null (not in window)
+ * Default number of days after a shot during which we still consider
+ * the user "in the post-shot window" (i.e. side-effect data is
+ * shot-relevant). 7 days = full weekly cycle.
+ *
+ * 3 was a mistake — Wegovy 2.4 mg patients routinely report GI side
+ * effects on day 4–6, and silently flipping later reports to "ad-hoc"
+ * stamped `dayAfterShot = 1` was corrupting the symptom timeline.
  */
-export function dayAfterShot(history: Injection[], now: Date): 1 | 2 | 3 | null {
+export const POST_SHOT_WINDOW_DAYS = 7;
+
+/**
+ * "Which day-after-shot is it right now?"
+ *   - 0           → same calendar day as the shot (we don't prompt yet)
+ *   - 1..7        → in the post-shot side-effect window
+ *   - >7 or no history → null (not in window)
+ *
+ * The narrow `1..3` range was widened to `1..7` to cover the full
+ * weekly cycle. The return type is intentionally `number | null` (not
+ * a literal union) so callers don't drift if we ever extend further.
+ */
+export function dayAfterShot(history: Injection[], now: Date): number | null {
   const last = mostRecentInjection(history);
   if (!last) return null;
   const d = calendarDaysBetween(new Date(last.takenAt), now);
-  if (d === 1 || d === 2 || d === 3) return d;
+  if (d >= 1 && d <= POST_SHOT_WINDOW_DAYS) return d;
   return null;
 }
 
-/** True when `now` is in the side-effect prompt window. */
+/**
+ * Same as `dayAfterShot` but always returns a value in 1..7 (clamped),
+ * used when the user explicitly opens the symptoms screen and we
+ * don't want to silently call it "ad-hoc". Returns `null` only when
+ * there is no shot history at all.
+ */
+export function dayAfterShotClamped(history: Injection[], now: Date): number | null {
+  const last = mostRecentInjection(history);
+  if (!last) return null;
+  const d = calendarDaysBetween(new Date(last.takenAt), now);
+  if (d <= 0) return null;
+  return Math.min(d, POST_SHOT_WINDOW_DAYS);
+}
+
+/** True when `now` is in the side-effect prompt window (1..7 days after the most recent shot). */
 export function isInPostShotWindow(history: Injection[], now: Date): boolean {
   return dayAfterShot(history, now) !== null;
 }

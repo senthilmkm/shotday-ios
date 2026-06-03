@@ -326,16 +326,34 @@ export function PaywallScreen(): React.ReactElement {
         )}
       </ScrollView>
 
-      {!isLocked ? (
-        <Button
-          label={ent === 'PRO' ? 'Done' : 'Continue without subscribing'}
-          variant="ghost"
-          fullWidth
-          haptic={false}
-          onPress={() => navigation.goBack()}
-          style={{ margin: theme.spacing.lg, marginTop: 0 }}
-        />
-      ) : null}
+      {/*
+       * Always-visible escape hatch.
+       *
+       *   PRO     → "Done" closes the screen.
+       *   TRIAL   → "Continue without subscribing" returns to Home.
+       *   EXPIRED → "Not now — keep using read-only history" returns
+       *             to Home. We deliberately do NOT hide this link
+       *             when the trial has expired: hiding it would
+       *             trap the user, which (a) violates App Review
+       *             3.1.2 ("auto-renewing subscriptions … must
+       *             allow users to cancel"), and (b) tanks our
+       *             1-star reviews. Read-only history + the paywall
+       *             banner on Home are enough friction.
+       */}
+      <Button
+        label={
+          ent === 'PRO'
+            ? 'Done'
+            : isLocked
+              ? 'Not now — keep using read-only history'
+              : 'Continue without subscribing'
+        }
+        variant="ghost"
+        fullWidth
+        haptic={false}
+        onPress={() => navigation.goBack()}
+        style={{ margin: theme.spacing.lg, marginTop: 0 }}
+      />
     </SafeAreaView>
   );
 }

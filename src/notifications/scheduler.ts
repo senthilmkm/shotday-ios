@@ -13,9 +13,11 @@
 // reaches the OS.
 
 import * as Notifications from 'expo-notifications';
+import { navigateFromNotification } from '../navigation/navigationRef';
 import type { PlannedNotification } from './schedule';
 
 let handlerInstalled = false;
+let responseSubscription: Notifications.EventSubscription | null = null;
 
 /** Idempotent. Call once on app boot. */
 export function installNotificationHandler(): void {
@@ -29,6 +31,31 @@ export function installNotificationHandler(): void {
       shouldSetBadge: false,
     }),
   });
+  // Tap-to-route. The identifier is `${CATEGORY}_${weekday}` for the
+  // recurring notifications and just `REFILL_NUDGE` for the one-shot.
+  // Either way we pluck the category off the front and let the nav
+  // helper figure out where to land. Safe to register multiple times
+  // (the `handlerInstalled` guard prevents duplicates) but we still
+  // remove any prior subscription out of paranoia.
+  responseSubscription?.remove();
+  responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    const id = response.notification.request.identifier ?? '';
+    const category = id.split('_').slice(0, -1).join('_') || id;
+    navigateFromNotification(category);
+  });
+
+  // Also handle a notification that LAUNCHED the app from a cold
+  // start. iOS calls this `getLastNotificationResponse` and it fires
+  // once with the response that triggered launch — we route the same
+  // way as a foreground tap.
+  Notifications.getLastNotificationResponseAsync()
+    .then((response) => {
+      if (!response) return;
+      const id = response.notification.request.identifier ?? '';
+      const category = id.split('_').slice(0, -1).join('_') || id;
+      navigateFromNotification(category);
+    })
+    .catch(() => {});
 }
 
 /** True when notifications are allowed by the OS. */

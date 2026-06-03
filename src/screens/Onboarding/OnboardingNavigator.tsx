@@ -1,20 +1,12 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import { useTheme } from '../../theme/ThemeProvider';
-import { DoseScreen } from './DoseScreen';
-import { DrugScreen } from './DrugScreen';
-import { NotificationPermissionScreen } from './NotificationPermissionScreen';
-import { ShotDayScreen } from './ShotDayScreen';
-import { WeightScreen } from './WeightScreen';
+import { QuickSetupScreen } from './QuickSetupScreen';
 import { WelcomeScreen } from './WelcomeScreen';
 
 export type OnboardingStackParamList = {
   Welcome: undefined;
-  Drug: undefined;
-  Dose: undefined;
-  Weight: undefined;
-  ShotDay: undefined;
-  NotificationPermission: undefined;
+  QuickSetup: undefined;
 };
 
 const Stack = createNativeStackNavigator<OnboardingStackParamList>();
@@ -30,11 +22,7 @@ export function OnboardingNavigator(): React.ReactElement {
       }}
     >
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="Drug" component={DrugScreen} />
-      <Stack.Screen name="Dose" component={DoseScreen} />
-      <Stack.Screen name="Weight" component={WeightScreen} />
-      <Stack.Screen name="ShotDay" component={ShotDayScreen} />
-      <Stack.Screen name="NotificationPermission" component={NotificationPermissionScreen} />
+      <Stack.Screen name="QuickSetup" component={QuickSetupScreen} />
     </Stack.Navigator>
   );
 }

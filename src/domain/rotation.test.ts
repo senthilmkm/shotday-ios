@@ -1,5 +1,5 @@
 import type { Injection, InjectionZone } from '../types/domain';
-import { lastUsedZone, suggestNextZone } from './rotation';
+import { hotZones, lastUsedZone, suggestNextZone } from './rotation';
 
 function inj(zone: InjectionZone, takenAt: string, doseMg = 0.5): Injection {
   return { id: `${zone}-${takenAt}`, zone, takenAt, doseMg };
@@ -63,6 +63,53 @@ describe('suggestNextZone', () => {
     const next = suggestNextZone(history, 8);
     expect(next).toBeDefined();
     expect(next).not.toBe('OTHER');
+  });
+});
+
+describe('hotZones', () => {
+  it('returns empty when history is shorter than the lookback', () => {
+    const history: Injection[] = [
+      inj('BELLY_UL', '2026-05-24T09:00:00Z'),
+      inj('BELLY_UL', '2026-05-31T09:00:00Z'),
+    ];
+    // lookback 4, history of 2 → not enough signal to warn yet.
+    expect(hotZones(history).size).toBe(0);
+  });
+
+  it('flags a zone hit twice in the last 4 injections', () => {
+    const history: Injection[] = [
+      inj('BELLY_UL', '2026-05-10T09:00:00Z'),
+      inj('THIGH_L', '2026-05-17T09:00:00Z'),
+      inj('BELLY_UL', '2026-05-24T09:00:00Z'),
+      inj('ARM_R', '2026-05-31T09:00:00Z'),
+    ];
+    const hot = hotZones(history);
+    expect(hot.has('BELLY_UL')).toBe(true);
+    expect(hot.has('THIGH_L')).toBe(false);
+  });
+
+  it('does not flag zones hit only once in the lookback window', () => {
+    const history: Injection[] = [
+      inj('BELLY_UL', '2026-05-10T09:00:00Z'),
+      inj('BELLY_UR', '2026-05-17T09:00:00Z'),
+      inj('THIGH_L', '2026-05-24T09:00:00Z'),
+      inj('THIGH_R', '2026-05-31T09:00:00Z'),
+    ];
+    expect(hotZones(history).size).toBe(0);
+  });
+
+  it('only considers the most recent N injections, ignoring older repeats', () => {
+    const history: Injection[] = [
+      // Old repeats — should NOT count as hot now that they're outside lookback 4.
+      inj('BELLY_UL', '2026-04-01T09:00:00Z'),
+      inj('BELLY_UL', '2026-04-08T09:00:00Z'),
+      // Last 4 are all unique zones.
+      inj('THIGH_L', '2026-05-10T09:00:00Z'),
+      inj('THIGH_R', '2026-05-17T09:00:00Z'),
+      inj('ARM_L', '2026-05-24T09:00:00Z'),
+      inj('ARM_R', '2026-05-31T09:00:00Z'),
+    ];
+    expect(hotZones(history).size).toBe(0);
   });
 });
 

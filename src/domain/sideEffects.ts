@@ -60,26 +60,37 @@ interface BuildAdHocArgs {
   metrics: Record<SideEffectMetric, number>;
   chips: SideEffectChip[];
   customSymptoms: string[];
-  /** Day-after-shot to assign when out of window or no history. Defaults to 1. */
-  fallbackDayAfterShot?: 1 | 2 | 3;
+  /**
+   * Day-after-shot to stamp on the entry. Callers should pass the
+   * REAL day (use `dayAfterShotClamped`) — not 1. Earlier versions
+   * defaulted to 1 even on day 5 reports, which silently corrupted
+   * the symptom timeline.
+   */
+  dayAfterShot?: number;
   /** Dose to snapshot. Pull from profile.currentDoseMg. */
   doseMg: number;
   now: Date;
 }
 
-/** Builds an entry "out of window" or with no injection history. */
+/**
+ * Builds an entry "out of window" or with no injection history.
+ *
+ * `dayAfterShot` defaults to 1 ONLY as an absolute fallback when the
+ * caller cannot compute it (no shot history at all). Callers with
+ * shot history should pass `dayAfterShotClamped(injections, now)`.
+ */
 export function buildAdHocEntry({
   metrics,
   chips,
   customSymptoms,
-  fallbackDayAfterShot = 1,
+  dayAfterShot = 1,
   doseMg,
   now,
 }: BuildAdHocArgs): SideEffectEntry {
   return {
     id: `se-${now.getTime()}`,
     loggedAt: now.toISOString(),
-    dayAfterShot: fallbackDayAfterShot,
+    dayAfterShot,
     metrics: { ...metrics },
     chips: [...chips],
     customSymptoms: customSymptoms.map((s) => s.trim()).filter(Boolean),

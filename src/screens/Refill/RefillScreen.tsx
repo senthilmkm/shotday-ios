@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
+import { X } from 'lucide-react-native';
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
+import { DateTimePickerSheet } from '../../components/DateTimePickerSheet';
 import { defaultDosesPerPen, refillStatus } from '../../domain/refill';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -32,9 +34,14 @@ export function RefillScreen(): React.ReactElement {
       ? String(existing.dosesPerPen)
       : String(defaultDosesPerPen(db.profile.drug)),
   );
-  const [filledDate, setFilledDate] = useState<Date>(
-    existing ? new Date(existing.lastFilledAt) : new Date(),
+  // First-time setup: leave the date unset until the user explicitly
+  // picks one. The previous behavior of defaulting to today caused
+  // people to silently accept "today" when the refill was actually
+  // last week, which throws off the dose-remaining count from day one.
+  const [filledDate, setFilledDate] = useState<Date | null>(
+    existing ? new Date(existing.lastFilledAt) : null,
   );
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const today = useMemo(() => new Date(), []);
   const status = useMemo(
@@ -44,10 +51,15 @@ export function RefillScreen(): React.ReactElement {
 
   const dosesPerPenNum = parseInt(dosesPerPen, 10);
   const validDoses = Number.isFinite(dosesPerPenNum) && dosesPerPenNum > 0;
+  const canSave = validDoses && filledDate !== null;
 
   const onSaveSetup = (): void => {
     if (!validDoses) {
       Alert.alert('Invalid', 'Doses per pen must be a positive whole number.');
+      return;
+    }
+    if (!filledDate) {
+      Alert.alert('Pick a date', 'Tap "Last filled" and choose when this pen was filled.');
       return;
     }
     updateDb((prev) => ({
@@ -82,16 +94,16 @@ export function RefillScreen(): React.ReactElement {
           text: 'Yes',
           style: 'default',
           onPress: () => {
-            const today = new Date();
+            const pickedUpAt = new Date();
             updateDb((prev) => ({
               ...prev,
               refill: {
                 dosesPerPen: prev.refill?.dosesPerPen ?? defaultDosesPerPen(prev.profile.drug),
-                lastFilledAt: today.toISOString(),
+                lastFilledAt: pickedUpAt.toISOString(),
                 refillRequested: false,
               },
             }));
-            setFilledDate(today);
+            setFilledDate(pickedUpAt);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
           },
         },
@@ -121,12 +133,32 @@ export function RefillScreen(): React.ReactElement {
         : theme.colors.success;
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-        <Text style={[theme.typography.title, { color: theme.colors.text }]}>Refill</Text>
-        <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
-          We count down from each shot you log so you don't run out.
-        </Text>
+    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['top', 'bottom']}>
+      <View style={[styles.headerRow, { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[theme.typography.title, { color: theme.colors.text }]}>Refill</Text>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
+            We count down from each shot you log so you don't run out.
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Close refill"
+          style={({ pressed }) => [
+            styles.closeButton,
+            {
+              backgroundColor: theme.colors.surface,
+              borderRadius: 999,
+              opacity: pressed ? 0.6 : 1,
+            },
+          ]}
+        >
+          <X size={18} color={theme.colors.text} strokeWidth={2} />
+        </Pressable>
+      </View>
+      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingTop: 0 }}>
 
         {/* ─── Status pill (only if configured) ────────────── */}
         {!status.unconfigured && (
@@ -226,77 +258,128 @@ export function RefillScreen(): React.ReactElement {
         >
           LAST FILLED
         </Text>
-        <View style={[styles.dateRow]}>
-          <Pressable
-            onPress={() => {
-              const earlier = new Date(filledDate);
-              earlier.setDate(earlier.getDate() - 7);
-              setFilledDate(earlier);
-              Haptics.selectionAsync().catch(() => {});
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Move last filled date back one week"
-            style={({ pressed }) => [
-              styles.dateBtn,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radii.md,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>−1 wk</Text>
-          </Pressable>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={[theme.typography.heading, { color: theme.colors.text }]}>
-              {filledDate.toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </Text>
-            <Pressable
-              onPress={() => setFilledDate(new Date())}
-              accessibilityRole="button"
-              accessibilityLabel="Reset last filled date to today"
-              style={({ pressed }) => [{ marginTop: 4, opacity: pressed ? 0.5 : 1 }]}
-            >
-              <Text style={[theme.typography.caption, { color: theme.colors.primary }]}>Today</Text>
-            </Pressable>
+        <Pressable
+          onPress={() => setDatePickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={
+            filledDate
+              ? `Last filled: ${filledDate.toLocaleDateString(undefined, {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}. Tap to change.`
+              : 'Last filled date not set. Tap to choose a date.'
+          }
+          accessibilityHint="Opens a date picker"
+          style={({ pressed }) => [
+            styles.dateRowTap,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: filledDate ? theme.colors.border : theme.colors.warning,
+              borderRadius: theme.radii.md,
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <View style={{ flex: 1 }}>
+            {filledDate ? (
+              <>
+                <Text style={[theme.typography.heading, { color: theme.colors.text }]}>
+                  {filledDate.toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </Text>
+                <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                  {daysAgoLabel(filledDate)}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={[theme.typography.heading, { color: theme.colors.textMuted }]}>
+                  Pick a date
+                </Text>
+                <Text style={[theme.typography.caption, { color: theme.colors.warning, marginTop: 2 }]}>
+                  Required — when did you fill this pen?
+                </Text>
+              </>
+            )}
           </View>
-          <Pressable
-            onPress={() => {
-              const later = new Date(filledDate);
-              later.setDate(later.getDate() + 7);
-              if (later.getTime() > Date.now()) return;
-              setFilledDate(later);
-              Haptics.selectionAsync().catch(() => {});
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Move last filled date forward one week"
-            style={({ pressed }) => [
-              styles.dateBtn,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radii.md,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>+1 wk</Text>
-          </Pressable>
-        </View>
+          <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
+            {filledDate ? 'Edit' : 'Choose'}
+          </Text>
+        </Pressable>
 
-        <Button
-          label={status.unconfigured ? 'Turn on refill tracking' : 'Save changes'}
-          fullWidth
-          size="lg"
-          disabled={!validDoses}
-          onPress={onSaveSetup}
-          style={{ marginTop: 24 }}
-        />
+        {/*
+         * Single-primary-action stack. The audit found that when all three
+         * buttons (save / pick up / disable) are full-width primary stacks
+         * the user can't tell which is the "right" thing to tap. We pick
+         * one CTA based on status and demote the others.
+         *
+         *   unconfigured    → primary: "Turn on refill tracking"
+         *   EMPTY / URGENT  → primary: "I picked up my refill"
+         *   INFO / NONE     → primary: "Save changes"
+         */}
+        {(() => {
+          if (status.unconfigured) {
+            return (
+              <Button
+                label="Turn on refill tracking"
+                fullWidth
+                size="lg"
+                disabled={!canSave}
+                onPress={onSaveSetup}
+                style={{ marginTop: 24 }}
+              />
+            );
+          }
+
+          const showPickedUpAsPrimary =
+            status.alertLevel === 'EMPTY' || status.alertLevel === 'URGENT';
+
+          if (showPickedUpAsPrimary) {
+            return (
+              <>
+                <Button
+                  label="I picked up my refill"
+                  fullWidth
+                  size="lg"
+                  onPress={onMarkPickedUp}
+                  style={{ marginTop: 24 }}
+                />
+                <Button
+                  label="Save changes"
+                  variant="secondary"
+                  fullWidth
+                  disabled={!canSave}
+                  onPress={onSaveSetup}
+                  style={{ marginTop: 12 }}
+                />
+              </>
+            );
+          }
+
+          return (
+            <>
+              <Button
+                label="Save changes"
+                fullWidth
+                size="lg"
+                disabled={!canSave}
+                onPress={onSaveSetup}
+                style={{ marginTop: 24 }}
+              />
+              <Button
+                label="I picked up my refill"
+                variant="secondary"
+                fullWidth
+                onPress={onMarkPickedUp}
+                style={{ marginTop: 12 }}
+              />
+            </>
+          );
+        })()}
 
         {/* ─── Refill-requested toggle (if configured) ────── */}
         {!status.unconfigured && (
@@ -330,16 +413,6 @@ export function RefillScreen(): React.ReactElement {
 
         {!status.unconfigured && (
           <Button
-            label="I picked up my refill"
-            variant="secondary"
-            fullWidth
-            onPress={onMarkPickedUp}
-            style={{ marginTop: 16 }}
-          />
-        )}
-
-        {!status.unconfigured && (
-          <Button
             label="Disable refill tracking"
             variant="ghost"
             fullWidth
@@ -350,15 +423,27 @@ export function RefillScreen(): React.ReactElement {
         )}
       </ScrollView>
 
-      <Button
-        label="Done"
-        fullWidth
-        size="lg"
-        onPress={() => navigation.goBack()}
-        style={{ margin: theme.spacing.lg, marginTop: 0 }}
+      <DateTimePickerSheet
+        mode="date"
+        visible={datePickerOpen}
+        onClose={() => setDatePickerOpen(false)}
+        title="When was this filled?"
+        initialDate={filledDate ?? new Date()}
+        maximumDate={new Date()}
+        onConfirm={(d) => setFilledDate(d)}
       />
     </SafeAreaView>
   );
+}
+
+function daysAgoLabel(date: Date): string {
+  const ms = Date.now() - date.getTime();
+  const days = Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  const weeks = Math.round(days / 7);
+  return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
 }
 
 function labelForLevel(level: 'NONE' | 'INFO' | 'URGENT' | 'EMPTY'): string {
@@ -398,13 +483,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginLeft: 4,
   },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  dateBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    minWidth: 60,
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  closeButton: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  dateRowTap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
   },
   toggleRow: {
     flexDirection: 'row',

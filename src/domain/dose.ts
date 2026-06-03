@@ -1,13 +1,29 @@
 // Drug-specific escalation ladders.
-// Source: each drug's FDA-approved label (Ozempic, Wegovy, Mounjaro, Zepbound).
-// We deliberately model only the standard escalation paths users follow at
-// home; off-label or compounded variants fall through to "CUSTOM" and the
-// user enters values manually.
+// Source: each drug's FDA-approved label.
+//   - Ozempic    : 0.25 → 0.5 → 1.0 → 2.0 mg  (no 1.7 / 2.4 — those are Wegovy-only).
+//   - Wegovy     : 0.25 → 0.5 → 1.0 → 1.7 → 2.4 mg
+//   - Mounjaro   : 2.5 → 5.0 → 7.5 → 10 → 12.5 → 15 mg
+//   - Zepbound   : same as Mounjaro
+//   - OTHER      : custom; ladder unknown, surfaced as a numeric input.
+//
+// Ozempic and Wegovy share the active ingredient (semaglutide) but
+// have DIFFERENT pen strengths and DIFFERENT FDA-approved escalation
+// schedules. Earlier versions of this file modelled them as a single
+// "SEMAGLUTIDE_LADDER" — that bug recommended doses to Ozempic users
+// that their pen literally cannot deliver. Don't merge them again.
 
 import type { DoseRung, DrugFamily, LadderId } from '../types/domain';
 
-/** Semaglutide ladder (Ozempic + Wegovy share this, with one extra rung on Wegovy). */
-export const SEMAGLUTIDE_LADDER: DoseRung[] = [
+/** Ozempic — type 2 diabetes indication. Top dose is 2.0 mg. */
+export const OZEMPIC_LADDER: DoseRung[] = [
+  { label: '0.25 mg', mg: 0.25 },
+  { label: '0.5 mg', mg: 0.5 },
+  { label: '1.0 mg', mg: 1.0 },
+  { label: '2.0 mg', mg: 2.0 },
+];
+
+/** Wegovy — chronic weight management indication. Top dose is 2.4 mg. */
+export const WEGOVY_LADDER: DoseRung[] = [
   { label: '0.25 mg', mg: 0.25 },
   { label: '0.5 mg', mg: 0.5 },
   { label: '1.0 mg', mg: 1.0 },
@@ -25,7 +41,12 @@ export const TIRZEPATIDE_LADDER: DoseRung[] = [
   { label: '15 mg', mg: 15 },
 ];
 
-/** Maps the drug family the user picked to which ladder applies. */
+/**
+ * Categorical ladder identifier — useful for analytics / charts that
+ * want to group both semaglutide drugs together. NOT used for picking
+ * rungs (that goes through `rungsForDrug` to keep Ozempic and Wegovy
+ * separate).
+ */
 export function ladderIdForDrug(drug: DrugFamily): LadderId {
   switch (drug) {
     case 'OZEMPIC':
@@ -39,47 +60,56 @@ export function ladderIdForDrug(drug: DrugFamily): LadderId {
   }
 }
 
-/** Returns the rung array for a given ladder. CUSTOM returns an empty array — UI surfaces a manual numeric input instead. */
-export function rungsForLadder(ladder: LadderId): DoseRung[] {
-  switch (ladder) {
-    case 'SEMAGLUTIDE':
-      return SEMAGLUTIDE_LADDER;
-    case 'TIRZEPATIDE':
+/** Returns the rung array for a given drug. OTHER returns []. */
+export function rungsForDrug(drug: DrugFamily): DoseRung[] {
+  switch (drug) {
+    case 'OZEMPIC':
+      return OZEMPIC_LADDER;
+    case 'WEGOVY':
+      return WEGOVY_LADDER;
+    case 'MOUNJARO':
+    case 'ZEPBOUND':
       return TIRZEPATIDE_LADDER;
-    case 'CUSTOM':
+    case 'OTHER':
       return [];
   }
 }
 
-/** Convenience: rungs for a drug family. */
-export function rungsForDrug(drug: DrugFamily): DoseRung[] {
-  return rungsForLadder(ladderIdForDrug(drug));
-}
-
 /**
  * Find the index (0-based) of the rung that matches the given mg.
- * Returns -1 if not found (e.g., custom dose, or off-ladder value).
- * Comparison uses strict mg equality — assumes UI only writes ladder
- * values into currentDoseMg unless drug === 'OTHER'.
+ * Returns -1 if not found (e.g., custom dose, or off-ladder value
+ * after a drug switch).
  */
-export function rungIndexForMg(ladder: LadderId, mg: number): number {
-  return rungsForLadder(ladder).findIndex((r) => r.mg === mg);
+export function rungIndexForMg(drug: DrugFamily, mg: number): number {
+  return rungsForDrug(drug).findIndex((r) => r.mg === mg);
 }
 
 /** Returns the next rung up, or null if already at the top of the ladder. */
-export function nextRung(ladder: LadderId, currentMg: number): DoseRung | null {
-  const rungs = rungsForLadder(ladder);
+export function nextRung(drug: DrugFamily, currentMg: number): DoseRung | null {
+  const rungs = rungsForDrug(drug);
   const idx = rungs.findIndex((r) => r.mg === currentMg);
   if (idx === -1 || idx === rungs.length - 1) return null;
   return rungs[idx + 1] ?? null;
 }
 
 /** Returns the previous rung, or null if already at the bottom. */
-export function previousRung(ladder: LadderId, currentMg: number): DoseRung | null {
-  const rungs = rungsForLadder(ladder);
+export function previousRung(drug: DrugFamily, currentMg: number): DoseRung | null {
+  const rungs = rungsForDrug(drug);
   const idx = rungs.findIndex((r) => r.mg === currentMg);
   if (idx <= 0) return null;
   return rungs[idx - 1] ?? null;
+}
+
+/**
+ * True when `mg` does not appear on the standard ladder for `drug`.
+ * Used to detect a "stranded" dose after the user switches drugs in
+ * Settings (e.g. they were on Ozempic 0.5 mg and switched to Mounjaro
+ * — 0.5 mg is not on the tirzepatide ladder).
+ */
+export function isOffLadder(drug: DrugFamily, mg: number): boolean {
+  if (drug === 'OTHER') return false;
+  if (mg <= 0) return false;
+  return rungIndexForMg(drug, mg) === -1;
 }
 
 /**

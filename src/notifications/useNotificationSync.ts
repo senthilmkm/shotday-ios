@@ -40,6 +40,10 @@ export function useNotificationSync(): void {
       quietHoursEnd: db.profile.quietHoursEnd,
       currentDoseLabel: db.profile.currentDoseLabel,
       onboardingComplete: db.profile.onboardingComplete,
+      // Master in-app reminders switch — flipping this off must
+      // immediately clear the OS schedule (not just stop adding new
+      // ones), so include it in the diff key.
+      notificationsEnabled: db.profile.notificationsEnabled,
       // Refill nudge depends on injection count + lastFilledAt + requested flag.
       injectionCount: db.injections.length,
       lastInjectionAt: db.injections[0]?.takenAt ?? null,

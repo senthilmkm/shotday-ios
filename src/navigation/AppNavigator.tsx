@@ -1,24 +1,32 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import React from 'react';
 import { useTheme } from '../theme/ThemeProvider';
-import { BodyDiagramScreen } from '../screens/Injection/BodyDiagramScreen';
 import { DoseLadderScreen } from '../screens/Dose/DoseLadderScreen';
-import { FoodLogScreen } from '../screens/Food/FoodLogScreen';
-import { HomeScreen } from '../screens/Home/HomeScreen';
+import { HistoryScreen } from '../screens/History/HistoryScreen';
 import { PaywallScreen } from '../screens/Paywall/PaywallScreen';
 import { RefillScreen } from '../screens/Refill/RefillScreen';
-import { SettingsScreen } from '../screens/Settings/SettingsScreen';
-import { SideEffectLogScreen } from '../screens/SideEffects/SideEffectLogScreen';
+import { MainTabs, type MainTabsParamList } from './MainTabs';
 
+/**
+ * Top-level app stack.
+ *
+ * `MainTabs` is the root and contains the 5 bottom tabs: Home, Shot, Food,
+ * Symptoms, Settings. The remaining screens (DoseLadder, Refill, Paywall)
+ * present as bottom-sheet modals over the tab bar — they are infrequent
+ * destinations that benefit from staying out of the navigation chrome.
+ *
+ * Legacy aliases (`Home`, `BodyDiagram`, `SideEffectLog`, `FoodLog`) are
+ * intentionally NOT exported here. Screens that need to deep-link into a
+ * tab use `navigation.navigate('Shot' | 'Food' | 'Symptoms' | 'Home')` —
+ * React Navigation resolves those names to the tab inside `MainTabs`.
+ */
 export type AppStackParamList = {
-  Home: undefined;
-  BodyDiagram: undefined;
-  SideEffectLog: undefined;
-  FoodLog: undefined;
+  MainTabs: NavigatorScreenParams<MainTabsParamList>;
   DoseLadder: undefined;
   Refill: undefined;
-  Settings: undefined;
   Paywall: undefined;
+  History: undefined;
 };
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
@@ -35,36 +43,9 @@ export function AppNavigator(): React.ReactElement {
       }}
     >
       <Stack.Screen
-        name="Home"
-        component={HomeScreen}
+        name="MainTabs"
+        component={MainTabs}
         options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="BodyDiagram"
-        component={BodyDiagramScreen}
-        options={{
-          presentation: 'modal',
-          headerTitle: '',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
-        name="SideEffectLog"
-        component={SideEffectLogScreen}
-        options={{
-          presentation: 'modal',
-          headerTitle: '',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
-        name="FoodLog"
-        component={FoodLogScreen}
-        options={{
-          presentation: 'modal',
-          headerTitle: '',
-          animation: 'slide_from_bottom',
-        }}
       />
       <Stack.Screen
         name="DoseLadder"
@@ -85,20 +66,21 @@ export function AppNavigator(): React.ReactElement {
         }}
       />
       <Stack.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          presentation: 'modal',
-          headerTitle: '',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
         name="Paywall"
         component={PaywallScreen}
         options={{
           presentation: 'modal',
           headerTitle: '',
+          animation: 'slide_from_bottom',
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          presentation: 'modal',
+          headerShown: false,
           animation: 'slide_from_bottom',
           gestureEnabled: true,
         }}

@@ -54,20 +54,26 @@ export function WelcomeScreen({ navigation }: Props): React.ReactElement {
           <Text
             style={[
               theme.typography.caption,
-              { color: theme.colors.textMuted, textAlign: 'center', marginBottom: theme.spacing.sm, lineHeight: 18 },
-            ]}
-          >
-            {NOT_MEDICAL_ADVICE_LONG}
-          </Text>
-          <Text
-            style={[
-              theme.typography.caption,
               { color: theme.colors.textMuted, textAlign: 'center', marginBottom: theme.spacing.md },
             ]}
           >
             Everything stays on your phone. No account, no cloud.
           </Text>
-          <Button label="Get started" fullWidth size="lg" onPress={() => navigation.navigate('Drug')} />
+          <Button label="Get started" fullWidth size="lg" onPress={() => navigation.navigate('QuickSetup')} />
+          <Text
+            style={[
+              theme.typography.caption,
+              {
+                color: theme.colors.textMuted,
+                textAlign: 'center',
+                marginTop: theme.spacing.md,
+                lineHeight: 16,
+                fontSize: 11,
+              },
+            ]}
+          >
+            {NOT_MEDICAL_ADVICE_LONG}
+          </Text>
         </View>
       </View>
     </ScreenContainer>

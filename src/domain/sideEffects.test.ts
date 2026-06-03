@@ -43,7 +43,7 @@ describe('buildPostShotEntry', () => {
     expect(result).toBeNull();
   });
 
-  it('returns null when out of window (day 0 or beyond day 3)', () => {
+  it('returns null when out of window (day 0 or beyond day 7)', () => {
     const history = [inj('2026-06-01T09:00:00')];
     expect(
       buildPostShotEntry({
@@ -60,9 +60,29 @@ describe('buildPostShotEntry', () => {
         chips: [],
         customSymptoms: [],
         injections: history,
-        now: new Date(2026, 5, 5, 8, 0), // day 4
+        now: new Date(2026, 5, 9, 8, 0), // day 8
       }),
     ).toBeNull();
+  });
+
+  it('accepts day 4 through day 7 (window widened)', () => {
+    const history = [inj('2026-06-01T09:00:00')];
+    for (const [date, expectedDay] of [
+      [new Date(2026, 5, 5, 8, 0), 4],
+      [new Date(2026, 5, 6, 8, 0), 5],
+      [new Date(2026, 5, 7, 8, 0), 6],
+      [new Date(2026, 5, 8, 8, 0), 7],
+    ] as const) {
+      const entry = buildPostShotEntry({
+        metrics: defaultMetrics(),
+        chips: [],
+        customSymptoms: [],
+        injections: history,
+        now: date,
+      });
+      expect(entry).not.toBeNull();
+      expect(entry?.dayAfterShot).toBe(expectedDay);
+    }
   });
 
   it('snapshots the most recent injection dose, not the current profile dose', () => {
@@ -123,16 +143,18 @@ describe('buildAdHocEntry', () => {
     expect(entry.doseMg).toBe(0.5);
   });
 
-  it('respects fallbackDayAfterShot override', () => {
-    const entry = buildAdHocEntry({
-      metrics: defaultMetrics(),
-      chips: [],
-      customSymptoms: [],
-      doseMg: 1,
-      fallbackDayAfterShot: 3,
-      now: new Date(2026, 5, 1, 12, 0),
-    });
-    expect(entry.dayAfterShot).toBe(3);
+  it('respects an explicit dayAfterShot override (1..7)', () => {
+    for (const day of [1, 3, 5, 7]) {
+      const entry = buildAdHocEntry({
+        metrics: defaultMetrics(),
+        chips: [],
+        customSymptoms: [],
+        doseMg: 1,
+        dayAfterShot: day,
+        now: new Date(2026, 5, 1, 12, 0),
+      });
+      expect(entry.dayAfterShot).toBe(day);
+    }
   });
 });
 

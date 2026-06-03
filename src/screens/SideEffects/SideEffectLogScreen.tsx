@@ -1,4 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
@@ -8,7 +11,7 @@ import { Button } from '../../components/Button';
 import { Chip } from '../../components/Chip';
 import { IntensityRow } from '../../components/IntensityRow';
 import { SIDE_EFFECT_DISCLAIMER } from '../../copy/disclaimers';
-import { dayAfterShot, mostRecentInjection } from '../../domain/dateMath';
+import { dayAfterShot, dayAfterShotClamped, mostRecentInjection } from '../../domain/dateMath';
 import {
   buildAdHocEntry,
   buildPostShotEntry,
@@ -23,12 +26,16 @@ import {
   type SideEffectMetric,
 } from '../../types/domain';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import type { MainTabsParamList } from '../../navigation/MainTabs';
+
 
 const METRIC_LABELS: Record<SideEffectMetric, string> = {
   NAUSEA: 'Nausea',
   FATIGUE: 'Fatigue',
   CONSTIPATION: 'Constipation',
   APPETITE_SUPPRESSION: 'Appetite suppression',
+  MOOD: 'Low mood',
+  ANXIETY: 'Anxiety',
 };
 
 const CHIP_LABELS: Record<SideEffectChip, string> = {
@@ -39,11 +46,15 @@ const CHIP_LABELS: Record<SideEffectChip, string> = {
   DIARRHEA: 'Diarrhea',
 };
 
-type Nav = NativeStackNavigationProp<AppStackParamList>;
+type Nav = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabsParamList, 'Symptoms'>,
+  NativeStackNavigationProp<AppStackParamList>
+>;
 
 export function SideEffectLogScreen(): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
+  const tabBarHeight = useBottomTabBarHeight();
   const { db, updateDb } = useShotdayDb();
 
   const [metrics, setMetrics] = useState(() => defaultMetrics());
@@ -78,6 +89,11 @@ export function SideEffectLogScreen(): React.ReactElement {
 
   const onSave = (): void => {
     const fresh = new Date();
+    // Always stamp the REAL day-after-shot when shot history exists,
+    // even when we're past the prompt window. Earlier versions
+    // stamped 1 for any "ad-hoc" entry, which corrupted the timeline
+    // (a day-5 entry would render as day-1 in Charts).
+    const realDay = dayAfterShotClamped(db.injections, fresh);
     const entry = inWindow
       ? buildPostShotEntry({
           metrics,
@@ -90,25 +106,31 @@ export function SideEffectLogScreen(): React.ReactElement {
           metrics,
           chips,
           customSymptoms: customs,
-          doseMg: db.profile.currentDoseMg,
+          doseMg: last?.doseMg ?? db.profile.currentDoseMg,
+          dayAfterShot: realDay ?? 1,
           now: fresh,
         });
     if (!entry) return;
     updateDb((prev) => ({ ...prev, sideEffects: [entry, ...prev.sideEffects] }));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     Alert.alert('Logged', 'Saved to your timeline.');
-    navigation.goBack();
+    navigation.navigate('Home');
   };
 
+  // The "in window" subtitle reads naturally for days 1–7. For the
+  // "out of window" case we only fall through when a logged shot
+  // exists but is more than a week old — at that point the entry is
+  // a follow-up rather than a tracked post-shot check-in. Phrase it
+  // honestly so the user knows what's being saved.
   const subtitle = inWindow
-    ? `Day ${day} after your ${last?.doseMg} mg shot`
+    ? `Day ${day} after your ${last?.doseMg ?? '?'} mg shot`
     : last
-      ? `Outside the post-shot window — saving as an ad-hoc check-in.`
+      ? 'More than a week since your last shot — saving as a follow-up check-in.'
       : 'No injection logged yet — saving as an ad-hoc check-in.';
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
+      <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: tabBarHeight + theme.spacing.lg }}>
         <Text style={[theme.typography.title, { color: theme.colors.text }]}>How are you feeling?</Text>
         <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
           {subtitle}
@@ -233,14 +255,6 @@ export function SideEffectLogScreen(): React.ReactElement {
 
         <View style={{ height: 16 }} />
         <Button label="Save" fullWidth size="lg" onPress={onSave} />
-        <Button
-          label="Cancel"
-          variant="ghost"
-          fullWidth
-          haptic={false}
-          onPress={() => navigation.goBack()}
-          style={{ marginTop: 8 }}
-        />
       </ScrollView>
     </SafeAreaView>
   );

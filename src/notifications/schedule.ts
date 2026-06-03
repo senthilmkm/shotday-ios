@@ -98,6 +98,11 @@ export function planNotifications(
   const plan: PlannedNotification[] = [];
   const profile = db.profile;
   if (!profile.onboardingComplete) return plan;
+  // The user can flip a single in-app switch to silence ALL scheduled
+  // reminders without revoking system permission. Honor that here so
+  // a re-grant of the OS permission doesn't quietly bring back
+  // notifications they already turned off.
+  if (profile.notificationsEnabled === false) return plan;
 
   const shotWeekday = DAY_TO_NUM[profile.shotDay];
   if (shotWeekday === undefined) return plan;
