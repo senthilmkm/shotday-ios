@@ -1007,13 +1007,13 @@ function labelForEntitlement(ent: string, days: number | null): string {
 function sublabelForEntitlement(ent: string, _days: number | null): string {
   switch (ent) {
     case 'PRO':
-      return 'Active subscription';
+      return 'Doctor reports, coach alerts, milestones, and private tracking are active';
     case 'TRIAL':
-      return 'Tap to upgrade now';
+      return 'Keep Today’s Coach, reports, and milestones after trial';
     case 'EXPIRED':
-      return 'Subscribe to keep tracking';
+      return 'Subscribe to keep your private GLP-1 coach';
     default:
-      return 'Tap to view plans';
+      return 'Start a private GLP-1 coach trial';
   }
 }
 

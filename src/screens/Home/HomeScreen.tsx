@@ -420,7 +420,7 @@ export function HomeScreen(): React.ReactElement {
                       : `TRIAL ENDS IN ${trialDays} DAY${trialDays === 1 ? '' : 'S'}`}
                   </Text>
                   <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
-                    Subscribe now to keep your timeline.
+                    Keep Today’s Coach, doctor reports, milestones, and smart alerts.
                   </Text>
                 </View>
                 <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
@@ -455,7 +455,7 @@ export function HomeScreen(): React.ReactElement {
                     TRIAL ENDED
                   </Text>
                   <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
-                    Subscribe to keep tracking.
+                    Subscribe to keep your private GLP-1 coach and progress reports.
                   </Text>
                 </View>
                 <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>

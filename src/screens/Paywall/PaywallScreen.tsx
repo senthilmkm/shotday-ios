@@ -40,9 +40,10 @@ import type { AppStackParamList } from '../../navigation/AppNavigator';
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
 const BENEFITS = [
-  { title: 'Smart site rotation', body: 'Auto-suggest the next zone so you never repeat — protect your tissue.' },
-  { title: 'Side-effect timeline', body: 'Spot patterns across doses so you and your doctor can adjust.' },
-  { title: 'Protein-first eating', body: 'A daily target tuned to your weight, with one-tap logging.' },
+  { title: 'Doctor-ready report', body: 'Share shots, missed/late doses, symptoms, weight, protein, refills, and notes in one clean summary.' },
+  { title: 'Smart GLP-1 coach', body: 'Today’s Coach and smart alerts show exactly what to log next so your data stays useful.' },
+  { title: 'Weight milestones', body: 'See weekly progress, 8-week rhythm, and weight-loss milestones that make consistency feel rewarding.' },
+  { title: 'Private by design', body: 'No account, no ads, and no health-data cloud. Your Shotday log stays on your device.' },
 ];
 
 export function PaywallScreen(): React.ReactElement {
@@ -144,7 +145,7 @@ export function PaywallScreen(): React.ReactElement {
           : `${trialDays} day${trialDays === 1 ? '' : 's'} left in your trial`
         : ent === 'EXPIRED'
           ? 'Trial ended'
-          : 'Try Shotday Pro';
+          : 'Your private GLP-1 coach';
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
@@ -157,10 +158,10 @@ export function PaywallScreen(): React.ReactElement {
         </Text>
         <Text style={[theme.typography.body, { color: theme.colors.textMuted, marginTop: 6 }]}>
           {ent === 'EXPIRED'
-            ? 'Subscribe to keep your timeline, rotation history, and reminders.'
+            ? 'Subscribe to keep Today’s Coach, doctor reports, milestones, alerts, and your private GLP-1 history.'
             : ent === 'PRO'
-              ? 'Thanks \u2014 you\u2019re helping keep the app account-free and ad-free.'
-              : `Unlock all 5 features for the long haul. ${FREE_TRIAL_LABEL} included.`}
+              ? 'Thanks. You’re helping keep Shotday private, account-free, and ad-free.'
+              : `Turn your weekly logs into progress, milestones, and doctor-ready reports. ${FREE_TRIAL_LABEL} included.`}
         </Text>
 
         <View style={{ marginTop: 28 }}>
@@ -233,7 +234,7 @@ export function PaywallScreen(): React.ReactElement {
             )}
 
             <Button
-              label={purchasing ? 'Processing…' : 'Subscribe'}
+              label={purchasing ? 'Processing…' : `Start ${FREE_TRIAL_LABEL}`}
               fullWidth
               size="lg"
               loading={purchasing}
