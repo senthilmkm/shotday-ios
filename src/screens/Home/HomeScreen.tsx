@@ -34,7 +34,6 @@ import {
 import { buildCsv, buildJson } from '../../domain/export';
 import { totalProteinForDay } from '../../domain/food';
 import { proteinProgress, proteinTargetGrams } from '../../domain/protein';
-import { buildProgressChecklist, type ProgressChecklistNextAction } from '../../domain/progressChecklist';
 import { refillStatus } from '../../domain/refill';
 import {
   APP_STORE_REVIEW_URL,
@@ -119,34 +118,11 @@ export function HomeScreen(): React.ReactElement {
     () => weightMilestoneSummary(db, today),
     [db, today],
   );
-  const progressChecklist = useMemo(
-    () => buildProgressChecklist(db, today),
-    [db, today],
-  );
   const smartAlerts = useMemo(
     () => buildSmartAlerts(db, today),
     [db, today],
   );
   const unreadAlerts = unreadSmartAlertCount(smartAlerts);
-
-  const onChecklistContinue = (action: ProgressChecklistNextAction): void => {
-    switch (action) {
-      case 'DOSE':
-        navigation.navigate('DoseLadder');
-        return;
-      case 'SHOT':
-        navigation.navigate('Shot');
-        return;
-      case 'WEIGHT':
-        setWeightSheetOpen(true);
-        return;
-      case 'SYMPTOMS':
-        navigation.navigate('Symptoms');
-        return;
-      case 'DONE':
-        navigation.navigate('WeeklyProgress');
-    }
-  };
 
   const openAlerts = (): void => {
     setAlertsOpen(true);
@@ -507,6 +483,17 @@ export function HomeScreen(): React.ReactElement {
               <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
                 {coach.detail}
               </Text>
+              {coach.checklist.length > 0 && (
+                <View style={styles.coachChecklist}>
+                  {coach.checklist.map((item) => (
+                    <CoachChecklistLine
+                      key={item.label}
+                      label={item.label}
+                      complete={item.complete}
+                    />
+                  ))}
+                </View>
+              )}
               {coach.actions.length > 0 && (
                 <View style={styles.coachActions}>
                   {coach.actions.map((action) => (
@@ -532,31 +519,6 @@ export function HomeScreen(): React.ReactElement {
             </View>
           </View>
         </Card>
-
-        {!progressChecklist.complete && (
-          <Card style={{ marginBottom: theme.spacing.md }}>
-            <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-              START HERE
-            </Text>
-            <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-              {progressChecklist.headline}
-            </Text>
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
-              {progressChecklist.completedCount} of {progressChecklist.totalCount} complete. {progressChecklist.body}
-            </Text>
-            <View style={{ marginTop: 12 }}>
-              {progressChecklist.items.map((item) => (
-                <ChecklistLine key={item.id} label={item.label} completed={item.completed} />
-              ))}
-            </View>
-            <Button
-              label="Continue"
-              fullWidth
-              onPress={() => onChecklistContinue(progressChecklist.nextAction)}
-              style={{ marginTop: 14 }}
-            />
-          </Card>
-        )}
 
         {/* ─── Weekly progress insight ───────────────────────── */}
         <Card style={{ marginBottom: theme.spacing.md }}>
@@ -887,14 +849,14 @@ function ProgressLine({ label, value }: { label: string; value: string }): React
   );
 }
 
-function ChecklistLine({ label, completed }: { label: string; completed: boolean }): React.ReactElement {
+function CoachChecklistLine({ label, complete }: { label: string; complete: boolean }): React.ReactElement {
   const theme = useTheme();
   return (
-    <View style={styles.checklistLine}>
-      <Text style={[theme.typography.captionMedium, { color: completed ? theme.colors.success : theme.colors.textMuted }]}>
-        {completed ? '✓' : '□'}
+    <View style={styles.coachChecklistLine}>
+      <Text style={[theme.typography.captionMedium, { color: complete ? theme.colors.success : theme.colors.textMuted }]}>
+        {complete ? '✓' : '○'}
       </Text>
-      <Text style={[theme.typography.caption, { color: completed ? theme.colors.text : theme.colors.textMuted, flex: 1 }]}>
+      <Text style={[theme.typography.caption, { color: complete ? theme.colors.text : theme.colors.textMuted, flex: 1 }]}>
         {label}
       </Text>
     </View>
@@ -970,6 +932,15 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 12,
   },
+  coachChecklist: {
+    marginTop: 12,
+    gap: 6,
+  },
+  coachChecklistLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   coachChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1007,11 +978,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 12,
-  },
-  checklistLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
   },
 });

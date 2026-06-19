@@ -17,17 +17,43 @@ function readyProfile() {
 }
 
 describe('today’s coach', () => {
+  it('guides a first-time user through setup sequence', () => {
+    const coach = buildTodaysCoach(
+      db({
+        profile: {
+          ...EMPTY_DB.profile,
+          onboardingComplete: true,
+          currentDoseMg: 0,
+          currentDoseLabel: '',
+          weight: 0,
+          shotDay: 'FRIDAY',
+        },
+      }),
+      new Date('2026-06-19T09:00:00'),
+    );
+
+    expect(coach.title).toBe('Build your first progress report');
+    expect(coach.checklist).toEqual([
+      { label: 'Medication + dose', complete: false },
+      { label: 'Shot logged', complete: false },
+      { label: 'Weight added', complete: false },
+      { label: 'Symptoms checked', complete: false },
+    ]);
+    expect(coach.actions).toEqual([{ type: 'DOSE', label: 'Update dose', icon: 'settings' }]);
+  });
+
   it('prioritizes logging the current cycle shot', () => {
     const coach = buildTodaysCoach(
       db({ profile: readyProfile() }),
       new Date('2026-06-19T09:00:00'),
     );
 
-    expect(coach.title).toBe('Log this week’s shot');
+    expect(coach.title).toBe('Complete today’s basics');
     expect(coach.actions[0]?.type).toBe('SHOT');
+    expect(coach.checklist.find((item) => item.label === 'Shot logged')?.complete).toBe(false);
   });
 
-  it('prioritizes symptom check after a recent shot', () => {
+  it('continues the checklist sequence after a recent shot', () => {
     const coach = buildTodaysCoach(
       db({
         profile: { ...readyProfile(), shotDay: 'WEDNESDAY' },
@@ -36,8 +62,9 @@ describe('today’s coach', () => {
       new Date('2026-06-19T09:00:00'),
     );
 
-    expect(coach.title).toBe('Check symptoms after your shot');
-    expect(coach.actions[0]?.type).toBe('SYMPTOMS');
+    expect(coach.title).toBe('Complete today’s basics');
+    expect(coach.actions[0]?.type).toBe('WEIGHT');
+    expect(coach.checklist.find((item) => item.label === 'Shot logged')?.complete).toBe(true);
   });
 
   it('asks for weekly weight after shot and symptoms are present', () => {
@@ -67,7 +94,7 @@ describe('today’s coach', () => {
       new Date('2026-06-19T18:00:00'),
     );
 
-    expect(coach.title).toBe('Add this week’s weight');
+    expect(coach.title).toBe('Complete today’s basics');
     expect(coach.actions[0]?.type).toBe('WEIGHT');
   });
 
@@ -107,5 +134,11 @@ describe('today’s coach', () => {
 
     expect(coach.title).toBe('Doctor report is ready');
     expect(coach.actions[0]?.type).toBe('DOCTOR_REPORT');
+    expect(coach.checklist).toEqual([
+      { label: 'Shot logged', complete: true },
+      { label: 'Weight added', complete: true },
+      { label: 'Symptoms checked', complete: true },
+      { label: 'Protein logged', complete: true },
+    ]);
   });
 });

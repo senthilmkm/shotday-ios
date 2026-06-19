@@ -8,7 +8,7 @@ import { AddWeightSheet } from '../../components/AddWeightSheet';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { weightMilestoneSummary } from '../../domain/weight';
-import { summarizeWeeklyProgress } from '../../domain/weeklyProgress';
+import { buildWeeklyRewardSummary } from '../../domain/weeklyReward';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -21,7 +21,8 @@ export function WeeklyProgressScreen(): React.ReactElement {
   const { db, updateDb } = useShotdayDb();
   const [weightSheetOpen, setWeightSheetOpen] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const progress = useMemo(() => summarizeWeeklyProgress(db, now), [db, now]);
+  const reward = useMemo(() => buildWeeklyRewardSummary(db, now), [db, now]);
+  const progress = reward.progress;
   const milestone = useMemo(() => weightMilestoneSummary(db, now), [db, now]);
 
   useEffect(() => {
@@ -82,62 +83,44 @@ export function WeeklyProgressScreen(): React.ReactElement {
       >
         <Card accent style={{ marginBottom: theme.spacing.md }}>
           <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-            TAKEAWAY
+            THIS WEEK’S WIN
           </Text>
-          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 6 }]}>
-            {progress.takeaway}
+          <Text style={[theme.typography.title, { color: theme.colors.text, marginTop: 6 }]}>
+            {reward.winTitle}
           </Text>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+            {reward.winDetail}
+          </Text>
+          <Button
+            label="Create Doctor Report"
+            fullWidth
+            onPress={() => navigation.navigate('DoctorReport')}
+            style={{ marginTop: 14 }}
+          />
         </Card>
 
-        <InsightCard
-          title="Shot routine"
-          headline={progress.shot.label}
-          detail={progress.shot.detail}
-        />
-        <InsightCard
-          title="Protein"
-          headline={progress.protein.label}
-          detail={progress.protein.detail}
-          meta={
-            progress.protein.status === 'READY'
-              ? `This cycle: ${progress.protein.hits}/${progress.protein.days} days · Last cycle: ${progress.protein.previousHits}/${progress.protein.previousDays} days`
-              : undefined
-          }
-        />
-        <InsightCard
-          title="Symptoms"
-          headline={progress.symptoms.label}
-          detail={progress.symptoms.detail}
-          meta={
-            progress.symptoms.currentAverage !== null && progress.symptoms.previousAverage !== null
-              ? `This cycle: ${progress.symptoms.currentAverage}/5 · Last cycle: ${progress.symptoms.previousAverage}/5`
-              : undefined
-          }
-        />
-        <InsightCard
-          title="Weight"
-          headline={progress.weight.label}
-          detail={progress.weight.detail}
-          meta={
-            progress.weight.change !== null
-              ? `${progress.weight.points} recent weight entries`
-              : undefined
-          }
-          action={
-            progress.weight.needsAnotherWeight
-              ? {
-                  label: 'Add this week’s weight',
-                  onPress: () => setWeightSheetOpen(true),
-                }
-              : undefined
-          }
-        />
+        <Card style={{ marginBottom: theme.spacing.md }}>
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
+            PROGRESS SCORE
+          </Text>
+          <Text style={[theme.typography.hero, { color: theme.colors.text, marginTop: 6 }]}>
+            {reward.scoreCompleted} / {reward.scoreTotal}
+          </Text>
+          <View style={styles.scoreGrid}>
+            {reward.items.map((item) => (
+              <ScorePill key={item.id} label={item.label} complete={item.complete} />
+            ))}
+          </View>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 12, lineHeight: 18 }]}>
+            {reward.focusDetail}
+          </Text>
+        </Card>
 
         <Card style={{ marginBottom: theme.spacing.md }}>
           <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
             WEIGHT MILESTONE
           </Text>
-          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+          <Text style={[theme.typography.title, { color: theme.colors.text, marginTop: 4 }]}>
             {milestone.label}
           </Text>
           <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
@@ -146,11 +129,24 @@ export function WeeklyProgressScreen(): React.ReactElement {
               : milestone.detail}
           </Text>
           {milestone.status === 'ACTIVE' && milestone.nextMilestone !== null && (
-            <View style={[styles.milestoneStats, { borderColor: theme.colors.border }]}>
-              <Stat label="Total lost" value={`${milestone.totalLost} ${milestone.unit}`} />
-              <Stat label="Next milestone" value={`${milestone.nextMilestone} ${milestone.unit}`} />
-              <Stat label="To go" value={`${milestone.remainingToNext} ${milestone.unit}`} />
-            </View>
+            <>
+              <View style={[styles.progressBar, { backgroundColor: theme.colors.surfaceMuted }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: theme.colors.primary,
+                      width: `${milestonePercent(milestone.totalLost, milestone.nextMilestone)}%`,
+                    },
+                  ]}
+                />
+              </View>
+              <View style={[styles.milestoneStats, { borderColor: theme.colors.border }]}>
+                <Stat label="Total lost" value={`${milestone.totalLost} ${milestone.unit}`} />
+                <Stat label="Next badge" value={`${milestone.nextMilestone} ${milestone.unit}`} />
+                <Stat label="To go" value={`${milestone.remainingToNext} ${milestone.unit}`} />
+              </View>
+            </>
           )}
           {milestone.status !== 'ACTIVE' && (
             <Button
@@ -162,13 +158,35 @@ export function WeeklyProgressScreen(): React.ReactElement {
           )}
         </Card>
 
-        <Button
-          label="Create Doctor Report"
-          fullWidth
-          size="lg"
-          onPress={() => navigation.navigate('DoctorReport')}
-          style={{ marginTop: theme.spacing.md }}
-        />
+        <Card style={{ marginBottom: theme.spacing.md }}>
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
+            8-WEEK RHYTHM
+          </Text>
+          <RhythmRow label="Shot routine" values={reward.rhythm.shot} />
+          <RhythmRow label="Weight check-ins" values={reward.rhythm.weight} />
+          <RhythmRow label="Symptom checks" values={reward.rhythm.symptoms} />
+        </Card>
+
+        <Card style={{ marginBottom: theme.spacing.md }}>
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+            {reward.comparisonTitle.toUpperCase()}
+          </Text>
+          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+            {reward.comparisonCallout}
+          </Text>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+            {reward.comparisonDetail}
+          </Text>
+        </Card>
+
+        <Card style={{ marginBottom: theme.spacing.md }}>
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
+            {reward.focusTitle.toUpperCase()}
+          </Text>
+          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+            {reward.focusDetail}
+          </Text>
+        </Card>
       </ScrollView>
       <AddWeightSheet
         visible={weightSheetOpen}
@@ -203,45 +221,22 @@ export function WeeklyProgressScreen(): React.ReactElement {
   );
 }
 
-function InsightCard({
-  title,
-  headline,
-  detail,
-  meta,
-  action,
-}: {
-  title: string;
-  headline: string;
-  detail: string;
-  meta?: string;
-  action?: { label: string; onPress: () => void };
-}): React.ReactElement {
+function ScorePill({ label, complete }: { label: string; complete: boolean }): React.ReactElement {
   const theme = useTheme();
   return (
-    <Card style={{ marginBottom: theme.spacing.md }}>
-      <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
-        {title.toUpperCase()}
+    <View
+      style={[
+        styles.scorePill,
+        {
+          backgroundColor: complete ? theme.colors.surfaceMuted : 'transparent',
+          borderColor: complete ? theme.colors.primary : theme.colors.border,
+        },
+      ]}
+    >
+      <Text style={[theme.typography.captionMedium, { color: complete ? theme.colors.primary : theme.colors.textMuted }]}>
+        {complete ? '●' : '○'} {label}
       </Text>
-      <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-        {headline}
-      </Text>
-      <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
-        {detail}
-      </Text>
-      {meta && (
-        <Text style={[theme.typography.captionMedium, { color: theme.colors.primary, marginTop: 10 }]}>
-          {meta}
-        </Text>
-      )}
-      {action && (
-        <Button
-          label={action.label}
-          fullWidth
-          onPress={action.onPress}
-          style={{ marginTop: 12 }}
-        />
-      )}
-    </Card>
+    </View>
   );
 }
 
@@ -257,6 +252,36 @@ function Stat({ label, value }: { label: string; value: string }): React.ReactEl
       </Text>
     </View>
   );
+}
+
+function RhythmRow({ label, values }: { label: string; values: boolean[] }): React.ReactElement {
+  const theme = useTheme();
+  return (
+    <View style={styles.rhythmRow}>
+      <Text style={[theme.typography.captionMedium, { color: theme.colors.text, flex: 1 }]}>
+        {label}
+      </Text>
+      <View style={styles.rhythmDots}>
+        {values.map((hit, index) => (
+          <View
+            key={`${label}-${index}`}
+            style={[
+              styles.rhythmDot,
+              {
+                backgroundColor: hit ? theme.colors.success : theme.colors.surfaceMuted,
+                borderColor: hit ? theme.colors.success : theme.colors.border,
+              },
+            ]}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function milestonePercent(totalLost: number | null, nextMilestone: number | null): number {
+  if (!totalLost || !nextMilestone || nextMilestone <= 0) return 0;
+  return Math.max(4, Math.min(100, Math.round((totalLost / nextMilestone) * 100)));
 }
 
 function formatRange(start: Date, end: Date): string {
@@ -285,5 +310,43 @@ const styles = StyleSheet.create({
   statCol: {
     flex: 1,
     padding: 10,
+  },
+  scoreGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  scorePill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  progressBar: {
+    height: 10,
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginTop: 14,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  rhythmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    gap: 12,
+  },
+  rhythmDots: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  rhythmDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    borderWidth: 1,
   },
 });
