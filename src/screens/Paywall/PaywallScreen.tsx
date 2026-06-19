@@ -146,6 +146,8 @@ export function PaywallScreen(): React.ReactElement {
         : ent === 'EXPIRED'
           ? 'Trial ended'
           : 'Your private GLP-1 coach';
+  const description = paywallDescription(ent);
+  const purchaseLabel = purchasing ? 'Processing…' : purchaseCtaLabel(ent);
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
@@ -157,11 +159,7 @@ export function PaywallScreen(): React.ReactElement {
           {headline}
         </Text>
         <Text style={[theme.typography.body, { color: theme.colors.textMuted, marginTop: 6 }]}>
-          {ent === 'EXPIRED'
-            ? 'Subscribe to keep Today’s Coach, doctor reports, milestones, alerts, and your private GLP-1 history.'
-            : ent === 'PRO'
-              ? 'Thanks. You’re helping keep Shotday private, account-free, and ad-free.'
-              : `Turn your weekly logs into progress, milestones, and doctor-ready reports. ${FREE_TRIAL_LABEL} included.`}
+          {description}
         </Text>
 
         <View style={{ marginTop: 28 }}>
@@ -234,7 +232,7 @@ export function PaywallScreen(): React.ReactElement {
             )}
 
             <Button
-              label={purchasing ? 'Processing…' : `Start ${FREE_TRIAL_LABEL}`}
+              label={purchaseLabel}
               fullWidth
               size="lg"
               loading={purchasing}
@@ -365,6 +363,30 @@ function humanizeError(err: string | null): string {
   if (err === 'product_not_found') return 'That plan is temporarily unavailable.';
   if (err === 'no_entitlement') return 'Purchase succeeded but the entitlement didn\u2019t activate. Try Restore.';
   return err;
+}
+
+function paywallDescription(ent: string): string {
+  switch (ent) {
+    case 'EXPIRED':
+      return 'Subscribe to keep Today’s Coach, doctor reports, milestones, alerts, and your private GLP-1 history.';
+    case 'PRO':
+      return 'Thanks. You’re helping keep Shotday private, account-free, and ad-free.';
+    case 'TRIAL':
+      return 'Keep your private GLP-1 coach, doctor-ready reports, smart alerts, and milestones after your trial.';
+    default:
+      return `Turn your weekly logs into progress, milestones, and doctor-ready reports. ${FREE_TRIAL_LABEL} included.`;
+  }
+}
+
+function purchaseCtaLabel(ent: string): string {
+  switch (ent) {
+    case 'TRIAL':
+      return 'Keep Shotday Pro';
+    case 'EXPIRED':
+      return 'Subscribe to Shotday Pro';
+    default:
+      return `Start ${FREE_TRIAL_LABEL}`;
+  }
 }
 
 const styles = StyleSheet.create({
