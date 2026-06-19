@@ -16,12 +16,13 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, AppState, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AddWeightSheet } from '../../components/AddWeightSheet';
 import { AdherenceRing } from '../../components/AdherenceRing';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { SoftReviewPromptSheet } from '../../components/SoftReviewPromptSheet';
 import { SmartAlertsSheet } from '../../components/SmartAlertsSheet';
 import { adherenceCount, recentWeeklyAdherence } from '../../domain/adherence';
 import { daysUntilEligibleToBump, nextRung } from '../../domain/dose';
@@ -35,6 +36,11 @@ import { totalProteinForDay } from '../../domain/food';
 import { proteinProgress, proteinTargetGrams } from '../../domain/protein';
 import { buildProgressChecklist, type ProgressChecklistNextAction } from '../../domain/progressChecklist';
 import { refillStatus } from '../../domain/refill';
+import {
+  APP_STORE_REVIEW_URL,
+  APP_STORE_REVIEW_WEB_URL,
+  shouldShowSoftReviewPrompt,
+} from '../../domain/reviewPrompt';
 import {
   buildSmartAlerts,
   markSmartAlertsSeen,
@@ -79,6 +85,8 @@ export function HomeScreen(): React.ReactElement {
   const { db, updateDb } = useShotdayDb();
   const [weightSheetOpen, setWeightSheetOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [reviewPromptOpen, setReviewPromptOpen] = useState(false);
+  const [reviewPromptShownThisSession, setReviewPromptShownThisSession] = useState(false);
 
   const [today, setToday] = useState(() => new Date());
 
@@ -250,6 +258,51 @@ export function HomeScreen(): React.ReactElement {
   const entitlement = computeEntitlement(db.profile, today);
   const trialDays = trialDaysRemaining(db.profile, today);
   const showTrialBanner = shouldShowTrialBanner(db.profile, today);
+
+  useEffect(() => {
+    if (reviewPromptShownThisSession || reviewPromptOpen) return;
+    if (!shouldShowSoftReviewPrompt(db, today)) return;
+    const timer = setTimeout(() => {
+      const nowIso = new Date().toISOString();
+      setReviewPromptShownThisSession(true);
+      setReviewPromptOpen(true);
+      updateDb((prev) => ({
+        ...prev,
+        reviewPrompt: {
+          ...prev.reviewPrompt,
+          lastShownAt: nowIso,
+        },
+      }));
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [db, reviewPromptOpen, reviewPromptShownThisSession, today, updateDb]);
+
+  const closeReviewPrompt = (): void => {
+    const nowIso = new Date().toISOString();
+    setReviewPromptOpen(false);
+    updateDb((prev) => ({
+      ...prev,
+      reviewPrompt: {
+        ...prev.reviewPrompt,
+        lastDismissedAt: nowIso,
+      },
+    }));
+  };
+
+  const openReview = (): void => {
+    const nowIso = new Date().toISOString();
+    setReviewPromptOpen(false);
+    updateDb((prev) => ({
+      ...prev,
+      reviewPrompt: {
+        ...prev.reviewPrompt,
+        reviewedAt: nowIso,
+      },
+    }));
+    Linking.openURL(APP_STORE_REVIEW_URL)
+      .catch(() => Linking.openURL(APP_STORE_REVIEW_WEB_URL))
+      .catch(() => {});
+  };
 
   // Weight re-ask nudge — protein target drifts as users on GLP-1 lose
   // weight, and most never re-open Settings to update it. After 60
@@ -728,6 +781,11 @@ export function HomeScreen(): React.ReactElement {
         alerts={smartAlerts}
         onClose={() => setAlertsOpen(false)}
         onAction={onAlertAction}
+      />
+      <SoftReviewPromptSheet
+        visible={reviewPromptOpen}
+        onLater={closeReviewPrompt}
+        onReview={openReview}
       />
     </SafeAreaView>
   );

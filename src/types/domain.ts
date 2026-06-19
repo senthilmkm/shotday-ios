@@ -197,6 +197,18 @@ export interface SmartAlertStorage {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Soft review prompt metadata
+// ────────────────────────────────────────────────────────────────────
+
+export interface ReviewPromptState {
+  lastShownAt: string | null;
+  lastDismissedAt: string | null;
+  reviewedAt: string | null;
+  weeklyProgressViewedAt: string | null;
+  doctorReportViewedAt: string | null;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // User profile (set during onboarding, editable in settings)
 // ────────────────────────────────────────────────────────────────────
 
@@ -292,6 +304,7 @@ export interface ShotdayDb {
   refill: RefillSchedule | null;
   refillHistory: RefillHistoryEntry[];
   smartAlerts: SmartAlertStorage;
+  reviewPrompt: ReviewPromptState;
 }
 
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -328,4 +341,11 @@ export const EMPTY_DB: ShotdayDb = {
   refill: null,
   refillHistory: [],
   smartAlerts: { byId: {} },
+  reviewPrompt: {
+    lastShownAt: null,
+    lastDismissedAt: null,
+    reviewedAt: null,
+    weeklyProgressViewedAt: null,
+    doctorReportViewedAt: null,
+  },
 };

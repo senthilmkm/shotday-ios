@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { X } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -36,11 +36,22 @@ const INCLUDED = [
 export function DoctorReportScreen(): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
-  const { db } = useShotdayDb();
+  const { db, updateDb } = useShotdayDb();
   const [notes, setNotes] = useState('');
 
   const report = useMemo(() => buildDoctorReport(db, new Date(), notes), [db, notes]);
   const proteinHits = report.proteinTrend.days.filter((day) => day.hitTarget === true).length;
+
+  useEffect(() => {
+    const nowIso = new Date().toISOString();
+    updateDb((prev) => ({
+      ...prev,
+      reviewPrompt: {
+        ...prev.reviewPrompt,
+        doctorReportViewedAt: prev.reviewPrompt.doctorReportViewedAt ?? nowIso,
+      },
+    }));
+  }, [updateDb]);
 
   const onShare = async (): Promise<void> => {
     try {

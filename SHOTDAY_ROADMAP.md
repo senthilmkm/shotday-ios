@@ -384,6 +384,35 @@ Implementation notes:
 
 ---
 
+## Phase K — Native Apple Review Prompt (post-launch binary update)
+
+**Goal:** use Apple’s native in-app star rating prompt after positive moments, while keeping the current OTA-safe soft review prompt as the fallback.
+
+Why this is post-launch:
+- Native review prompts require `expo-store-review`.
+- Adding that package means a native binary change, so this is **EAS Build + App Store update**, not only `eas update`.
+- Apple controls whether the prompt appears; the app can request it, but Apple may silently suppress it.
+
+Scope:
+- Add `expo-store-review`.
+- Trigger only after positive moments:
+  - Weekly Progress viewed after useful data exists
+  - Doctor Report created/readied
+  - Weight milestone reached
+  - Multiple successful weekly routines completed
+- Keep strict anti-annoyance rules:
+  - At least 7 days since onboarding/trial start
+  - At least 2 shots logged
+  - At least 2 weights logged
+  - No urgent refill/data-completeness alert
+  - No more than once every 45 days
+  - Never during onboarding, errors, or frustrating flows
+- Fall back to the soft in-app review prompt when native review is unavailable or Apple does not show it.
+
+**Deliverable:** a native Apple star-rating prompt at the right positive moments, without nagging users.
+
+---
+
 ## Total estimate
 
 | Phase | Time | Cumulative |
@@ -397,6 +426,7 @@ Implementation notes:
 | H | 2.5 hrs | 15 hrs |
 | I (post-launch) | 2–3 hrs + EAS Build | next app update |
 | J (OTA-safe) | 2–3 hrs | next `eas update` candidate |
+| K (post-launch) | 1–2 hrs + EAS Build | later app update |
 
 **~15 hours of focused work + Apple review (1–7 days).**
 

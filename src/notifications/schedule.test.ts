@@ -43,6 +43,7 @@ const dbOf = (
   refill,
   refillHistory: [],
   smartAlerts: { byId: {} },
+  reviewPrompt: { ...EMPTY_DB.reviewPrompt },
 });
 
 const inj = (takenAt: string): Injection => ({

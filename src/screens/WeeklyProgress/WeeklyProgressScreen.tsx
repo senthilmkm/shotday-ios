@@ -36,6 +36,17 @@ export function WeeklyProgressScreen(): React.ReactElement {
     };
   }, []);
 
+  useEffect(() => {
+    const nowIso = new Date().toISOString();
+    updateDb((prev) => ({
+      ...prev,
+      reviewPrompt: {
+        ...prev.reviewPrompt,
+        weeklyProgressViewedAt: prev.reviewPrompt.weeklyProgressViewedAt ?? nowIso,
+      },
+    }));
+  }, [updateDb]);
+
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['top', 'bottom']}>
       <View style={[styles.headerRow, { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }]}>

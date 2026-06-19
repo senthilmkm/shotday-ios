@@ -120,6 +120,7 @@ function migrate(db: ShotdayDb): ShotdayDb {
       db.smartAlerts && typeof db.smartAlerts === 'object' && db.smartAlerts.byId
         ? { byId: db.smartAlerts.byId }
         : empty.smartAlerts,
+    reviewPrompt: { ...empty.reviewPrompt, ...(db.reviewPrompt ?? {}) },
   };
 }
 
