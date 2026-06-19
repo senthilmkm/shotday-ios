@@ -170,7 +170,8 @@ export function HistoryCalendar({ db, onDeleteEntry }: HistoryCalendarProps): Re
         <Legend color={theme.colors.primary} label="Shot" />
         <Legend color={theme.colors.warning} label="Symptom" />
         <Legend color={theme.colors.success} label="Food" />
-        <Legend color={theme.colors.textMuted} label="Dose" />
+        <Legend color={theme.colors.highlight} label="Weight" />
+        <Legend color={theme.colors.textMuted} label="Dose/refill" />
       </View>
 
       {/* ─── Selected-day entries ────────────────────────────── */}
@@ -248,7 +249,7 @@ function uniqueKinds(entries: TimelineEntry[]): string[] {
   const seen = new Set<string>();
   for (const e of entries) seen.add(e.kind);
   // Stable display order so dots don't shuffle between renders.
-  const order = ['injection', 'side-effect', 'food', 'dose-change'];
+  const order = ['injection', 'side-effect', 'food', 'weight', 'dose-change', 'refill'];
   return order.filter((k) => seen.has(k));
 }
 
@@ -260,7 +261,10 @@ function kindColor(kind: string, theme: ReturnType<typeof useTheme>): string {
       return theme.colors.warning;
     case 'food':
       return theme.colors.success;
+    case 'weight':
+      return theme.colors.highlight;
     case 'dose-change':
+    case 'refill':
       return theme.colors.textMuted;
     default:
       return theme.colors.textMuted;

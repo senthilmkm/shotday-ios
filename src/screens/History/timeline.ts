@@ -8,10 +8,12 @@ import type {
   FoodEntry,
   Injection,
   InjectionZone,
+  RefillHistoryEntry,
   ShotdayDb,
   SideEffectChip,
   SideEffectEntry,
   SideEffectMetric,
+  WeightEntry,
 } from '../../types/domain';
 
 /**
@@ -22,7 +24,9 @@ export type TimelineEntry =
   | { kind: 'injection'; date: Date; data: Injection }
   | { kind: 'side-effect'; date: Date; data: SideEffectEntry }
   | { kind: 'food'; date: Date; data: FoodEntry }
-  | { kind: 'dose-change'; date: Date; data: DoseHistoryEntry };
+  | { kind: 'dose-change'; date: Date; data: DoseHistoryEntry }
+  | { kind: 'weight'; date: Date; data: WeightEntry }
+  | { kind: 'refill'; date: Date; data: RefillHistoryEntry };
 
 export const ZONE_LABEL: Record<InjectionZone, string> = {
   BELLY_UL: 'Upper-left belly',
@@ -80,6 +84,12 @@ export function buildTimeline(db: ShotdayDb): TimelineEntry[] {
   for (const dc of db.doseHistory) {
     out.push({ kind: 'dose-change', date: new Date(dc.startedAt), data: dc });
   }
+  for (const w of db.weightEntries) {
+    out.push({ kind: 'weight', date: new Date(w.loggedAt), data: w });
+  }
+  for (const r of db.refillHistory) {
+    out.push({ kind: 'refill', date: new Date(r.loggedAt), data: r });
+  }
   out.sort((a, b) => b.date.getTime() - a.date.getTime());
   return out;
 }
@@ -135,6 +145,10 @@ export function removeTimelineEntry(db: ShotdayDb, entry: TimelineEntry): Shotda
       return { ...db, foods: db.foods.filter((f) => f.id !== entry.data.id) };
     case 'dose-change':
       return { ...db, doseHistory: db.doseHistory.filter((d) => d.id !== entry.data.id) };
+    case 'weight':
+      return { ...db, weightEntries: db.weightEntries.filter((w) => w.id !== entry.data.id) };
+    case 'refill':
+      return { ...db, refillHistory: db.refillHistory.filter((r) => r.id !== entry.data.id) };
   }
 }
 
@@ -149,6 +163,10 @@ export function entryKindLabel(kind: TimelineEntry['kind']): string {
       return 'food entry';
     case 'dose-change':
       return 'dose change';
+    case 'weight':
+      return 'weight entry';
+    case 'refill':
+      return 'refill event';
   }
 }
 

@@ -121,6 +121,20 @@ export interface FoodEntry {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Weight history
+// ────────────────────────────────────────────────────────────────────
+
+export interface WeightEntry {
+  id: string;
+  /** ISO-8601 timestamp when this weight was recorded. */
+  loggedAt: string;
+  weight: number;
+  unit: WeightUnit;
+  /** Optional user note, e.g. "home scale" or "doctor office". */
+  note?: string;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Dose history (escalation ladder events)
 // ────────────────────────────────────────────────────────────────────
 
@@ -145,6 +159,41 @@ export interface RefillSchedule {
   lastFilledAt: string;
   /** True after user marks the next refill as "requested" but not yet picked up. */
   refillRequested: boolean;
+}
+
+export type RefillHistoryEventType =
+  | 'SETUP'
+  | 'REQUESTED'
+  | 'PICKED_UP'
+  | 'LAST_FILLED_CHANGED'
+  | 'CONFIG_CHANGED';
+
+export interface RefillHistoryEntry {
+  id: string;
+  type: RefillHistoryEventType;
+  /** ISO-8601 timestamp when this refill event happened. */
+  loggedAt: string;
+  /** Snapshot of the pen/vial size after the event, when known. */
+  dosesPerPen?: number;
+  /** Snapshot of the last-filled date after the event, when known. */
+  lastFilledAt?: string;
+  /** Optional detail for report/export context. */
+  note?: string;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Smart alert metadata
+// ────────────────────────────────────────────────────────────────────
+
+export interface SmartAlertMeta {
+  /** First time this derived alert id appeared on this device. */
+  firstSeenAt: string;
+  /** Set when the user opens the alert center or acts on this alert. */
+  readAt: string | null;
+}
+
+export interface SmartAlertStorage {
+  byId: Record<string, SmartAlertMeta>;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -238,8 +287,11 @@ export interface ShotdayDb {
   injections: Injection[];
   sideEffects: SideEffectEntry[];
   foods: FoodEntry[];
+  weightEntries: WeightEntry[];
   doseHistory: DoseHistoryEntry[];
   refill: RefillSchedule | null;
+  refillHistory: RefillHistoryEntry[];
+  smartAlerts: SmartAlertStorage;
 }
 
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -271,6 +323,9 @@ export const EMPTY_DB: ShotdayDb = {
   injections: [],
   sideEffects: [],
   foods: [],
+  weightEntries: [],
   doseHistory: [],
   refill: null,
+  refillHistory: [],
+  smartAlerts: { byId: {} },
 };

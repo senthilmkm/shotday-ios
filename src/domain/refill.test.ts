@@ -54,6 +54,15 @@ describe('refillStatus — counting doses since last fill', () => {
     expect(s.dosesRemaining).toBe(3);
   });
 
+  it('counts same-day injections even if lastFilledAt carried a hidden time', () => {
+    const s = refillStatus(
+      refill({ lastFilledAt: '2026-06-01T18:00:00' }),
+      [inj('2026-06-01T09:00:00')],
+      new Date(),
+    );
+    expect(s.dosesRemaining).toBe(3);
+  });
+
   it('clamps to 0 when more injections logged than pen holds', () => {
     const injections = [
       inj('2026-06-08T09:00:00Z'),

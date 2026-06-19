@@ -1,10 +1,12 @@
-import { Activity, Pill, Syringe, Utensils } from 'lucide-react-native';
+import { Activity, Pill, Scale, Syringe, Utensils } from 'lucide-react-native';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { peakMetric } from '../../domain/sideEffects';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { SideEffectEntry, SideEffectMetric } from '../../types/domain';
 import { CHIP_LABEL, METRIC_LABEL, ZONE_LABEL, type TimelineEntry } from './timeline';
+
+type RefillTimelineData = Extract<TimelineEntry, { kind: 'refill' }>['data'];
 
 interface TimelineRowProps {
   entry: TimelineEntry;
@@ -48,10 +50,18 @@ export function TimelineRow({ entry, isLast, onLongPress }: TimelineRowProps): R
     icon = <Utensils size={18} color={theme.colors.primary} strokeWidth={2} />;
     title = `${entry.data.proteinGrams} g protein`;
     detail = entry.data.name;
-  } else {
+  } else if (entry.kind === 'dose-change') {
     icon = <Pill size={18} color={theme.colors.primary} strokeWidth={2} />;
     title = `Moved to ${entry.data.label}`;
     detail = 'Dose change';
+  } else if (entry.kind === 'weight') {
+    icon = <Scale size={18} color={theme.colors.primary} strokeWidth={2} />;
+    title = `Weight: ${entry.data.weight} ${entry.data.unit.toLowerCase()}`;
+    detail = entry.data.note || 'Weight check-in';
+  } else {
+    icon = <Pill size={18} color={theme.colors.primary} strokeWidth={2} />;
+    title = refillTitle(entry.data.type);
+    detail = refillDetail(entry.data);
   }
 
   const content = (
@@ -122,6 +132,31 @@ function dominantSymptoms(entry: SideEffectEntry): string[] {
     out.push(cs);
   }
   return out;
+}
+
+function refillTitle(type: RefillTimelineData['type']): string {
+  switch (type) {
+    case 'SETUP':
+      return 'Refill tracking set up';
+    case 'REQUESTED':
+      return 'Refill requested';
+    case 'PICKED_UP':
+      return 'Refill picked up';
+    case 'LAST_FILLED_CHANGED':
+      return 'Last-filled date changed';
+    case 'CONFIG_CHANGED':
+      return 'Refill setup changed';
+  }
+}
+
+function refillDetail(entry: RefillTimelineData): string {
+  const parts: string[] = [];
+  if (entry.dosesPerPen != null) parts.push(`${entry.dosesPerPen} dose${entry.dosesPerPen === 1 ? '' : 's'} per pen`);
+  if (entry.lastFilledAt) {
+    parts.push(`filled ${new Date(entry.lastFilledAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}`);
+  }
+  if (entry.note) parts.push(entry.note);
+  return parts.join(' · ') || 'Refill event';
 }
 
 const styles = StyleSheet.create({

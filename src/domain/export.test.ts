@@ -7,13 +7,15 @@ function db(over: Partial<ShotdayDb> = {}): ShotdayDb {
 }
 
 describe('buildCsv', () => {
-  it('emits a header banner and four section headings even when empty', () => {
+  it('emits a header banner and section headings even when empty', () => {
     const csv = buildCsv(db());
     expect(csv).toContain('# Shotday data export');
     expect(csv).toContain('## Injections');
     expect(csv).toContain('## Side-effect check-ins');
     expect(csv).toContain('## Food / protein log');
+    expect(csv).toContain('## Weight history');
     expect(csv).toContain('## Dose history');
+    expect(csv).toContain('## Refill history');
   });
 
   it('orders injections oldest-first within the section', () => {
@@ -70,6 +72,33 @@ describe('buildCsv', () => {
     expect(csv).toMatch(/mood,anxiety/);
     expect(csv).toContain(',1,2,1,3,4,5,');
   });
+
+  it('exports weight and refill history sections', () => {
+    const csv = buildCsv(
+      db({
+        weightEntries: [
+          {
+            id: 'w1',
+            loggedAt: '2026-06-01T08:00:00',
+            weight: 210,
+            unit: 'LB',
+            note: 'doctor office',
+          },
+        ],
+        refillHistory: [
+          {
+            id: 'r1',
+            type: 'PICKED_UP',
+            loggedAt: '2026-06-02T10:00:00',
+            dosesPerPen: 4,
+            lastFilledAt: '2026-06-02T10:00:00',
+          },
+        ],
+      }),
+    );
+    expect(csv).toContain('2026-06-01,08:00,210,LB,doctor office,w1');
+    expect(csv).toContain('2026-06-02,10:00,PICKED_UP,4,2026-06-02T10:00:00,,r1');
+  });
 });
 
 describe('buildJson', () => {
@@ -101,5 +130,53 @@ describe('buildJson', () => {
     const parsed = JSON.parse(json) as ShotdayDb;
     expect(parsed.injections).toHaveLength(1);
     expect(parsed.injections[0]?.id).toBe('a');
+    expect(parsed.weightEntries).toEqual([]);
+    expect(parsed.refillHistory).toEqual([]);
+  });
+
+  it('preserves populated weight and refill history in the full backup', () => {
+    const json = buildJson(
+      db({
+        weightEntries: [
+          {
+            id: 'w1',
+            loggedAt: '2026-06-01T08:00:00',
+            weight: 210,
+            unit: 'LB',
+            note: 'morning scale',
+          },
+        ],
+        refillHistory: [
+          {
+            id: 'r1',
+            type: 'PICKED_UP',
+            loggedAt: '2026-06-02T10:00:00',
+            dosesPerPen: 4,
+            lastFilledAt: '2026-06-02T00:00:00',
+            note: 'pharmacy pickup',
+          },
+        ],
+      }),
+    );
+    const parsed = JSON.parse(json) as ShotdayDb;
+    expect(parsed.weightEntries).toEqual([
+      {
+        id: 'w1',
+        loggedAt: '2026-06-01T08:00:00',
+        weight: 210,
+        unit: 'LB',
+        note: 'morning scale',
+      },
+    ]);
+    expect(parsed.refillHistory).toEqual([
+      {
+        id: 'r1',
+        type: 'PICKED_UP',
+        loggedAt: '2026-06-02T10:00:00',
+        dosesPerPen: 4,
+        lastFilledAt: '2026-06-02T00:00:00',
+        note: 'pharmacy pickup',
+      },
+    ]);
   });
 });

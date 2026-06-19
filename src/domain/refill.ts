@@ -17,6 +17,7 @@
 //     has no meaningful "low" state — it's either ready or empty.
 
 import type { Injection, RefillSchedule } from '../types/domain';
+import { dateOnly } from './dateMath';
 
 export type RefillAlertLevel = 'NONE' | 'INFO' | 'URGENT' | 'EMPTY';
 
@@ -76,7 +77,7 @@ export function refillStatus(
       alertLevel: 'NONE',
     };
   }
-  const filledMs = new Date(refill.lastFilledAt).getTime();
+  const filledMs = dateOnly(new Date(refill.lastFilledAt)).getTime();
   const usedSinceFill = injections.filter(
     (i) => new Date(i.takenAt).getTime() >= filledMs,
   ).length;

@@ -2,10 +2,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import React from 'react';
 import { useTheme } from '../theme/ThemeProvider';
+import { DoctorReportScreen } from '../screens/DoctorReport/DoctorReportScreen';
 import { DoseLadderScreen } from '../screens/Dose/DoseLadderScreen';
 import { HistoryScreen } from '../screens/History/HistoryScreen';
 import { PaywallScreen } from '../screens/Paywall/PaywallScreen';
 import { RefillScreen } from '../screens/Refill/RefillScreen';
+import { WeeklyProgressScreen } from '../screens/WeeklyProgress/WeeklyProgressScreen';
 import { MainTabs, type MainTabsParamList } from './MainTabs';
 
 /**
@@ -25,6 +27,8 @@ export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabsParamList>;
   DoseLadder: undefined;
   Refill: undefined;
+  WeeklyProgress: undefined;
+  DoctorReport: undefined;
   Paywall: undefined;
   History: undefined;
 };
@@ -63,6 +67,26 @@ export function AppNavigator(): React.ReactElement {
           presentation: 'modal',
           headerTitle: '',
           animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen
+        name="DoctorReport"
+        component={DoctorReportScreen}
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+          animation: 'slide_from_bottom',
+          gestureEnabled: true,
+        }}
+      />
+      <Stack.Screen
+        name="WeeklyProgress"
+        component={WeeklyProgressScreen}
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+          animation: 'slide_from_bottom',
+          gestureEnabled: true,
         }}
       />
       <Stack.Screen

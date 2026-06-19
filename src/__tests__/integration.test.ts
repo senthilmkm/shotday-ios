@@ -44,6 +44,11 @@ import {
   refillStatus,
 } from '../domain/refill';
 import { lastUsedZone, suggestNextZone } from '../domain/rotation';
+import {
+  buildSmartAlerts,
+  markSmartAlertsSeen,
+  unreadSmartAlertCount,
+} from '../domain/smartAlerts';
 import { planNotifications } from '../notifications/schedule';
 import {
   createMemoryStore,
@@ -953,5 +958,87 @@ describe('integration: subscription lifecycle', () => {
     expect(reloaded.profile.trialStartedAt).toBe(start);
     expect(reloaded.profile.proUntil).toBe(proUntil);
     expect(reloaded.profile.devProOverride).toBe(false);
+  });
+});
+
+describe('integration: smart alerts', () => {
+  it('guides missing data, then clears alerts as the user completes the cycle', () => {
+    const now = new Date('2026-06-19T18:00:00');
+    let db = applyOnboarding(freshDb(), {
+      shotDay: 'FRIDAY',
+      currentDoseMg: 0.5,
+      currentDoseLabel: '0.5 mg',
+    });
+
+    let alerts = buildSmartAlerts(db, now);
+    expect(alerts.map((alert) => alert.title)).toEqual(
+      expect.arrayContaining([
+        "Log this week's shot",
+        "Add this week's weight",
+        'Log protein today',
+        'Set refill tracking',
+        'Doctor report data incomplete',
+      ]),
+    );
+
+    db = logInjection(db, 'BELLY_UL', now);
+    db = {
+      ...db,
+      weightEntries: [
+        { id: 'w1', loggedAt: '2026-06-12T09:00:00', weight: 180, unit: 'LB' },
+        { id: 'w2', loggedAt: '2026-06-19T09:00:00', weight: 178, unit: 'LB' },
+      ],
+      foods: [
+        { id: 'food', loggedAt: '2026-06-19T12:00:00', name: 'Shake', proteinGrams: 30, preset: true },
+      ],
+      refill: { dosesPerPen: 4, lastFilledAt: '2026-06-10T00:00:00', refillRequested: false },
+      refillHistory: [
+        {
+          id: 'refill',
+          type: 'SETUP',
+          loggedAt: '2026-06-10T09:00:00',
+          dosesPerPen: 4,
+          lastFilledAt: '2026-06-10T00:00:00',
+        },
+      ],
+      sideEffects: [
+        buildPostShotEntry({
+          metrics: defaultMetrics(),
+          chips: [],
+          customSymptoms: [],
+          injections: db.injections,
+          now: new Date('2026-06-20T12:00:00'),
+        })!,
+      ],
+    };
+
+    alerts = buildSmartAlerts(db, new Date('2026-06-20T16:00:00'));
+    expect(alerts.map((alert) => alert.title)).not.toEqual(
+      expect.arrayContaining([
+        "Log this week's shot",
+        "Add this week's weight",
+        'Log protein today',
+        'Set refill tracking',
+        'Doctor report data incomplete',
+      ]),
+    );
+    expect(alerts.map((alert) => alert.title)).toContain('Doctor report ready');
+  });
+
+  it('persists read state for the current alert set', async () => {
+    const now = new Date('2026-06-19T16:00:00');
+    const store = createMemoryStore();
+    let db = applyOnboarding(freshDb(), { shotDay: 'FRIDAY' });
+    const alerts = buildSmartAlerts(db, now);
+
+    db = {
+      ...db,
+      smartAlerts: markSmartAlertsSeen(db.smartAlerts, alerts, now),
+    };
+    await saveDb(store, db);
+
+    const reloaded = await loadDb(store);
+    const reread = buildSmartAlerts(reloaded, now);
+    expect(unreadSmartAlertCount(reread)).toBe(0);
   });
 });

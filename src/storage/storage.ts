@@ -76,14 +76,50 @@ function migrate(db: ShotdayDb): ShotdayDb {
   // blobs without `trialStartedAt` or `proUntil` get safe nulls instead
   // of `undefined`, while existing user data is preserved.
   const empty = cloneEmpty();
+  const profile = { ...empty.profile, ...(db.profile ?? {}) };
+  const rawWeightEntries = Array.isArray(db.weightEntries) ? db.weightEntries : [];
+  const rawRefillHistory = Array.isArray(db.refillHistory) ? db.refillHistory : [];
+  const refill = db.refill ?? null;
+  const weightEntries =
+    rawWeightEntries.length === 0 && profile.weight > 0
+      ? [
+          {
+            id: 'weight-migrated-current',
+            loggedAt: profile.weightUpdatedAt ?? '1970-01-01T00:00:00.000Z',
+            weight: profile.weight,
+            unit: profile.weightUnit,
+            note: 'Migrated current weight',
+          },
+        ]
+      : rawWeightEntries;
+  const refillHistory =
+    rawRefillHistory.length === 0 && refill
+      ? [
+          {
+            id: 'refill-migrated-current',
+            type: 'SETUP' as const,
+            loggedAt: refill.lastFilledAt,
+            dosesPerPen: refill.dosesPerPen,
+            lastFilledAt: refill.lastFilledAt,
+            note: 'Migrated current refill setup',
+          },
+        ]
+      : rawRefillHistory;
   return {
     ...empty,
     ...db,
-    profile: { ...empty.profile, ...(db.profile ?? {}) },
+    profile,
     injections: Array.isArray(db.injections) ? db.injections : [],
     sideEffects: Array.isArray(db.sideEffects) ? db.sideEffects : [],
     foods: Array.isArray(db.foods) ? db.foods : [],
+    weightEntries,
     doseHistory: Array.isArray(db.doseHistory) ? db.doseHistory : [],
+    refill,
+    refillHistory,
+    smartAlerts:
+      db.smartAlerts && typeof db.smartAlerts === 'object' && db.smartAlerts.byId
+        ? { byId: db.smartAlerts.byId }
+        : empty.smartAlerts,
   };
 }
 

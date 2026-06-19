@@ -148,14 +148,24 @@ export function SettingsScreen(): React.ReactElement {
       Alert.alert('Invalid', 'Enter a positive number.');
       return;
     }
+    const nowIso = new Date().toISOString();
     updateDb((prev) => ({
       ...prev,
       profile: {
         ...prev.profile,
         weight: w,
         weightUnit: draftUnit,
-        weightUpdatedAt: new Date().toISOString(),
+        weightUpdatedAt: nowIso,
       },
+      weightEntries: [
+        ...prev.weightEntries,
+        {
+          id: `weight-${Date.now()}`,
+          loggedAt: nowIso,
+          weight: w,
+          unit: draftUnit,
+        },
+      ],
     }));
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setWeightSheetOpen(false);

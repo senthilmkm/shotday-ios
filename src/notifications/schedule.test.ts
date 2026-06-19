@@ -38,8 +38,11 @@ const dbOf = (
   injections,
   sideEffects: [],
   foods: [],
+  weightEntries: [],
   doseHistory: [],
   refill,
+  refillHistory: [],
+  smartAlerts: { byId: {} },
 });
 
 const inj = (takenAt: string): Injection => ({

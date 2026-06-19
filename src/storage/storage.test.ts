@@ -59,7 +59,8 @@ describe('loadDb', () => {
     const partial = {
       schemaVersion: CURRENT_SCHEMA_VERSION,
       profile: EMPTY_DB.profile,
-      // injections, sideEffects, foods, doseHistory all missing
+      // injections, sideEffects, foods, weightEntries, doseHistory,
+      // refillHistory all missing
       refill: null,
     };
     const store = createMemoryStore({ [STORAGE_KEY]: JSON.stringify(partial) });
@@ -67,7 +68,68 @@ describe('loadDb', () => {
     expect(db.injections).toEqual([]);
     expect(db.sideEffects).toEqual([]);
     expect(db.foods).toEqual([]);
+    expect(db.weightEntries).toEqual([]);
     expect(db.doseHistory).toEqual([]);
+    expect(db.refillHistory).toEqual([]);
+  });
+
+  it('seeds weight history from legacy current profile weight', async () => {
+    const partial = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      profile: {
+        ...EMPTY_DB.profile,
+        weight: 203,
+        weightUnit: 'LB',
+        weightUpdatedAt: '2026-06-01T08:00:00.000Z',
+      },
+      injections: [],
+      sideEffects: [],
+      foods: [],
+      doseHistory: [],
+      refill: null,
+      // legacy blob has no weightEntries
+    };
+    const store = createMemoryStore({ [STORAGE_KEY]: JSON.stringify(partial) });
+    const db = await loadDb(store);
+    expect(db.weightEntries).toEqual([
+      {
+        id: 'weight-migrated-current',
+        loggedAt: '2026-06-01T08:00:00.000Z',
+        weight: 203,
+        unit: 'LB',
+        note: 'Migrated current weight',
+      },
+    ]);
+  });
+
+  it('seeds refill history from legacy current refill setup', async () => {
+    const partial = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      profile: EMPTY_DB.profile,
+      injections: [],
+      sideEffects: [],
+      foods: [],
+      weightEntries: [],
+      doseHistory: [],
+      refill: {
+        dosesPerPen: 4,
+        lastFilledAt: '2026-06-01T00:00:00.000Z',
+        refillRequested: false,
+      },
+      // legacy blob has no refillHistory
+    };
+    const store = createMemoryStore({ [STORAGE_KEY]: JSON.stringify(partial) });
+    const db = await loadDb(store);
+    expect(db.refillHistory).toEqual([
+      {
+        id: 'refill-migrated-current',
+        type: 'SETUP',
+        loggedAt: '2026-06-01T00:00:00.000Z',
+        dosesPerPen: 4,
+        lastFilledAt: '2026-06-01T00:00:00.000Z',
+        note: 'Migrated current refill setup',
+      },
+    ]);
   });
 });
 

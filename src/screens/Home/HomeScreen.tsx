@@ -3,28 +3,48 @@ import type { CompositeNavigationProp } from '@react-navigation/native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { History } from 'lucide-react-native';
-import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { AdherenceRing } from '../../components/AdherenceRing';
-import { Card } from '../../components/Card';
-import { adherenceCount, recentWeeklyAdherence } from '../../domain/adherence';
 import {
-  dayAfterShot,
-  daysSinceLastShot,
-  daysUntilNext,
-} from '../../domain/dateMath';
+  Bell,
+  FileText,
+  HeartPulse,
+  History,
+  Pill,
+  Scale,
+  Settings,
+  Syringe,
+  Utensils,
+  type LucideIcon,
+} from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, AppState, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AddWeightSheet } from '../../components/AddWeightSheet';
+import { AdherenceRing } from '../../components/AdherenceRing';
+import { Button } from '../../components/Button';
+import { Card } from '../../components/Card';
+import { SmartAlertsSheet } from '../../components/SmartAlertsSheet';
+import { adherenceCount, recentWeeklyAdherence } from '../../domain/adherence';
 import { daysUntilEligibleToBump, nextRung } from '../../domain/dose';
 import {
   computeEntitlement,
   shouldShowTrialBanner,
   trialDaysRemaining,
 } from '../../domain/entitlement';
+import { buildCsv, buildJson } from '../../domain/export';
 import { totalProteinForDay } from '../../domain/food';
 import { proteinProgress, proteinTargetGrams } from '../../domain/protein';
+import { buildProgressChecklist, type ProgressChecklistNextAction } from '../../domain/progressChecklist';
 import { refillStatus } from '../../domain/refill';
-import { lastUsedZone, suggestNextZone } from '../../domain/rotation';
+import {
+  buildSmartAlerts,
+  markSmartAlertsSeen,
+  unreadSmartAlertCount,
+  type SmartAlertAction,
+  type SmartAlertIcon,
+} from '../../domain/smartAlerts';
+import { buildTodaysCoach, type CoachAction } from '../../domain/todaysCoach';
+import { weightMilestoneSummary } from '../../domain/weight';
+import { summarizeWeeklyProgress } from '../../domain/weeklyProgress';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -41,74 +61,39 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<AppStackParamList>
 >;
 
-const ZONE_LABEL_SHORT: Record<string, string> = {
-  BELLY_UL: 'Upper-left belly',
-  BELLY_UR: 'Upper-right belly',
-  BELLY_LL: 'Lower-left belly',
-  BELLY_LR: 'Lower-right belly',
-  THIGH_L: 'Left thigh',
-  THIGH_R: 'Right thigh',
-  ARM_L: 'Left arm',
-  ARM_R: 'Right arm',
-  OTHER: 'Other',
+const ACTION_ICONS: Record<SmartAlertIcon, LucideIcon> = {
+  settings: Settings,
+  syringe: Syringe,
+  scale: Scale,
+  heart: HeartPulse,
+  utensils: Utensils,
+  pill: Pill,
+  file: FileText,
+  download: FileText,
 };
 
 export function HomeScreen(): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const tabBarHeight = useBottomTabBarHeight();
-  const { db } = useShotdayDb();
+  const { db, updateDb } = useShotdayDb();
+  const [weightSheetOpen, setWeightSheetOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
 
-  const today = useMemo(() => new Date(), []);
-  const daysUntilShot = daysUntilNext(db.profile.shotDay, today);
-  const isShotDay = daysUntilShot === 0;
+  const [today, setToday] = useState(() => new Date());
 
-  const sinceLast = daysSinceLastShot(db.injections, today);
-  const postShotDay = dayAfterShot(db.injections, today);
-  const inPostShotWindow = postShotDay !== null;
-  // True when shot day === today AND the user has already logged a
-  // shot today. Without this we would slide back into SHOT_DAY mode
-  // and re-invite the user to "log your injection", then route them
-  // into the BLOCK_REPLACE alert. The `sinceLast === 0` test catches
-  // both same-calendar-day logs and shots logged on shot day itself.
-  const loggedToday = sinceLast === 0;
-
-  const suggested = useMemo(() => suggestNextZone(db.injections), [db.injections]);
-  const last = lastUsedZone(db.injections);
-
-  // Most recent shot's timestamp — used by SHOT_DAY_LOGGED to render
-  // "Shot logged at 9:14 AM" in the top card.
-  const lastShotTimeLabel = useMemo(() => {
-    if (db.injections.length === 0) return '';
-    let latest = db.injections[0]!;
-    for (const i of db.injections) {
-      if (new Date(i.takenAt).getTime() > new Date(latest.takenAt).getTime()) latest = i;
-    }
-    return new Date(latest.takenAt).toLocaleTimeString([], {
-      hour: 'numeric',
-      minute: '2-digit',
+  useEffect(() => {
+    const refresh = (): void => setToday(new Date());
+    const timer = setInterval(refresh, 60 * 1000);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
     });
-  }, [db.injections]);
-
-  // Top-card priority:
-  //   POST_SHOT          → in the 1..7 day side-effect window
-  //   SHOT_DAY_LOGGED    → today is shot day AND a shot was already logged today
-  //   SHOT_DAY           → today is shot day, no shot yet
-  //   COUNTDOWN          → days until the next shot
-  type TopMode = 'POST_SHOT' | 'SHOT_DAY_LOGGED' | 'SHOT_DAY' | 'COUNTDOWN';
-  const topMode: TopMode = inPostShotWindow
-    ? 'POST_SHOT'
-    : isShotDay && loggedToday
-      ? 'SHOT_DAY_LOGGED'
-      : isShotDay
-        ? 'SHOT_DAY'
-        : 'COUNTDOWN';
-
-  const onTopCardPress = (): void => {
-    if (topMode === 'POST_SHOT') navigation.navigate('Symptoms');
-    else if (topMode === 'SHOT_DAY_LOGGED') navigation.navigate('History');
-    else navigation.navigate('Shot');
-  };
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
+  }, []);
+  const coach = useMemo(() => buildTodaysCoach(db, today), [db, today]);
 
   // Adherence ring: how many of the last 8 weekly windows had a shot
   // logged? The current (in-progress) week shows hollow until logged.
@@ -118,6 +103,115 @@ export function HomeScreen(): React.ReactElement {
     [db.injections, db.profile.shotDay, today],
   );
   const adherenceHits = adherenceCount(adherence);
+  const weeklyProgress = useMemo(
+    () => summarizeWeeklyProgress(db, today),
+    [db, today],
+  );
+  const weightMilestone = useMemo(
+    () => weightMilestoneSummary(db, today),
+    [db, today],
+  );
+  const progressChecklist = useMemo(
+    () => buildProgressChecklist(db, today),
+    [db, today],
+  );
+  const smartAlerts = useMemo(
+    () => buildSmartAlerts(db, today),
+    [db, today],
+  );
+  const unreadAlerts = unreadSmartAlertCount(smartAlerts);
+
+  const onChecklistContinue = (action: ProgressChecklistNextAction): void => {
+    switch (action) {
+      case 'DOSE':
+        navigation.navigate('DoseLadder');
+        return;
+      case 'SHOT':
+        navigation.navigate('Shot');
+        return;
+      case 'WEIGHT':
+        setWeightSheetOpen(true);
+        return;
+      case 'SYMPTOMS':
+        navigation.navigate('Symptoms');
+        return;
+      case 'DONE':
+        navigation.navigate('WeeklyProgress');
+    }
+  };
+
+  const openAlerts = (): void => {
+    setAlertsOpen(true);
+    if (smartAlerts.length === 0 || unreadAlerts === 0) return;
+    updateDb((prev) => ({
+      ...prev,
+      smartAlerts: markSmartAlertsSeen(prev.smartAlerts, smartAlerts, new Date()),
+    }));
+  };
+
+  const onAlertAction = (action: SmartAlertAction): void => {
+    setAlertsOpen(false);
+    updateDb((prev) => ({
+      ...prev,
+      smartAlerts: markSmartAlertsSeen(prev.smartAlerts, smartAlerts, new Date()),
+    }));
+    switch (action) {
+      case 'DOSE':
+        navigation.navigate('DoseLadder');
+        return;
+      case 'SHOT':
+        navigation.navigate('Shot');
+        return;
+      case 'WEIGHT':
+        setWeightSheetOpen(true);
+        return;
+      case 'SYMPTOMS':
+        navigation.navigate('Symptoms');
+        return;
+      case 'FOOD':
+        navigation.navigate('Food');
+        return;
+      case 'REFILL':
+        navigation.navigate('Refill');
+        return;
+      case 'WEEKLY_PROGRESS':
+        navigation.navigate('WeeklyProgress');
+        return;
+      case 'DOCTOR_REPORT':
+        navigation.navigate('DoctorReport');
+        return;
+      case 'SETTINGS_EXPORT':
+        openExportDialog();
+    }
+  };
+
+  const openExportDialog = (): void => {
+    Alert.alert(
+      'Export your data',
+      'Pick a format. Both contain your full Shotday log.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'CSV (spreadsheet)',
+          onPress: () => {
+            Share.share({
+              title: 'Shotday data export.csv',
+              message: buildCsv(db),
+            }).catch(() => {});
+          },
+        },
+        {
+          text: 'JSON (full backup)',
+          onPress: () => {
+            Share.share({
+              title: 'Shotday data export.json',
+              message: buildJson(db),
+            }).catch(() => {});
+          },
+        },
+      ],
+    );
+  };
 
   // Protein
   const proteinTarget = useMemo(() => {
@@ -134,13 +228,6 @@ export function HomeScreen(): React.ReactElement {
     [db.foods, today],
   );
   const proteinPct = proteinProgress(proteinTodayG, proteinTarget);
-
-  // Most recent side-effect log today — used to swap the post-shot card subtitle.
-  const sideEffectLoggedToday = useMemo(() => {
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    return db.sideEffects.some((s) => new Date(s.loggedAt).getTime() >= startOfDay.getTime());
-  }, [db.sideEffects, today]);
 
   // Dose ladder mini
   const upcomingRung = nextRung(db.profile.drug, db.profile.currentDoseMg);
@@ -182,23 +269,61 @@ export function HomeScreen(): React.ReactElement {
           <Text style={[theme.typography.title, { color: theme.colors.text }]}>
             {greeting(today)}
           </Text>
-          <Pressable
-            onPress={() => navigation.navigate('History')}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Open history"
-            accessibilityHint="Shows everything you have logged"
-            style={({ pressed }) => [
-              styles.historyButton,
-              {
-                backgroundColor: theme.colors.surface,
-                borderRadius: 999,
-                opacity: pressed ? 0.6 : 1,
-              },
-            ]}
-          >
-            <History size={18} color={theme.colors.text} strokeWidth={2} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={openAlerts}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={
+                unreadAlerts > 0
+                  ? `Open smart alerts. ${unreadAlerts} unread.`
+                  : 'Open smart alerts'
+              }
+              accessibilityHint="Shows reminders for missing data needed by Shotday"
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 999,
+                  opacity: pressed ? 0.6 : 1,
+                },
+              ]}
+            >
+              <Bell size={18} color={theme.colors.text} strokeWidth={2} />
+              {unreadAlerts > 0 && (
+                <View
+                  style={[
+                    styles.alertBadge,
+                    {
+                      backgroundColor: theme.colors.danger,
+                      borderColor: theme.colors.surface,
+                    },
+                  ]}
+                >
+                  <Text style={styles.alertBadgeText}>
+                    {unreadAlerts > 9 ? '9+' : unreadAlerts}
+                  </Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate('History')}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Open history"
+              accessibilityHint="Shows everything you have logged"
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 999,
+                  opacity: pressed ? 0.6 : 1,
+                },
+              ]}
+            >
+              <History size={18} color={theme.colors.text} strokeWidth={2} />
+            </Pressable>
+          </View>
         </View>
 
         {showWeightNudge && (
@@ -312,80 +437,33 @@ export function HomeScreen(): React.ReactElement {
           </Pressable>
         )}
 
-        {/* ─── Top priority card ──────────────────────────────── */}
+        {/* ─── Today’s coach ──────────────────────────────────── */}
         <Card
           accent
           style={{ marginBottom: theme.spacing.md }}
-          onPress={onTopCardPress}
-          accessibilityLabel={
-            topMode === 'POST_SHOT'
-              ? sideEffectLoggedToday
-                ? `Update how you feel. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`
-                : `How are you feeling? Tap to log side effects. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`
-              : topMode === 'SHOT_DAY_LOGGED'
-                ? `Shot logged today at ${lastShotTimeLabel}. Tap to view history. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`
-                : topMode === 'SHOT_DAY'
-                  ? `It's shot day. Tap to log your injection. Suggested site: ${ZONE_LABEL_SHORT[suggested]}. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`
-                  : `Next shot in ${daysUntilShot} day${daysUntilShot === 1 ? '' : 's'}. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`
-          }
+          accessibilityLabel={`${coach.eyebrow}. ${coach.title}. ${coach.detail}. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`}
         >
           <View style={styles.topCardRow}>
             <View style={styles.topCardText}>
-              {topMode === 'POST_SHOT' ? (
-                <>
-                  <Text style={[theme.typography.captionMedium, { color: theme.colors.warning }]}>
-                    {sinceLast === 0
-                      ? 'EARLIER TODAY'
-                      : sinceLast === 1
-                        ? 'YESTERDAY'
-                        : `${sinceLast} DAYS AGO`}
-                  </Text>
-                  <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                    {sideEffectLoggedToday ? 'Update how you feel' : 'How are you feeling?'}
-                  </Text>
-                  <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-                    {sideEffectLoggedToday
-                      ? 'Tap to add to today\u2019s log.'
-                      : 'A 20-second check-in helps you spot patterns.'}
-                  </Text>
-                </>
-              ) : topMode === 'SHOT_DAY_LOGGED' ? (
-                <>
-                  <Text style={[theme.typography.captionMedium, { color: theme.colors.success }]}>
-                    LOGGED TODAY
-                  </Text>
-                  <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                    Shot recorded at {lastShotTimeLabel}
-                  </Text>
-                  <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-                    See you next {labelDay(db.profile.shotDay)}. Tap for history.
-                  </Text>
-                </>
-              ) : topMode === 'SHOT_DAY' ? (
-                <>
-                  <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-                    IT'S SHOT DAY
-                  </Text>
-                  <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                    Tap to log your injection.
-                  </Text>
-                  <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-                    Suggested: {ZONE_LABEL_SHORT[suggested]}
-                    {last && `   ·   Last week: ${ZONE_LABEL_SHORT[last]}`}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
-                    NEXT SHOT
-                  </Text>
-                  <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                    {daysUntilShot === 1 ? 'Tomorrow' : `In ${daysUntilShot} days`}
-                  </Text>
-                  <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-                    Suggested site: {ZONE_LABEL_SHORT[suggested]}
-                  </Text>
-                </>
+              <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+                {coach.eyebrow}
+              </Text>
+              <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+                {coach.title}
+              </Text>
+              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+                {coach.detail}
+              </Text>
+              {coach.actions.length > 0 && (
+                <View style={styles.coachActions}>
+                  {coach.actions.map((action) => (
+                    <CoachChip
+                      key={`${action.type}-${action.label}`}
+                      action={action}
+                      onPress={() => onAlertAction(action.type)}
+                    />
+                  ))}
+                </View>
               )}
             </View>
             <View style={styles.topCardRing}>
@@ -402,14 +480,118 @@ export function HomeScreen(): React.ReactElement {
           </View>
         </Card>
 
+        {!progressChecklist.complete && (
+          <Card style={{ marginBottom: theme.spacing.md }}>
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+              START HERE
+            </Text>
+            <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+              {progressChecklist.headline}
+            </Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+              {progressChecklist.completedCount} of {progressChecklist.totalCount} complete. {progressChecklist.body}
+            </Text>
+            <View style={{ marginTop: 12 }}>
+              {progressChecklist.items.map((item) => (
+                <ChecklistLine key={item.id} label={item.label} completed={item.completed} />
+              ))}
+            </View>
+            <Button
+              label="Continue"
+              fullWidth
+              onPress={() => onChecklistContinue(progressChecklist.nextAction)}
+              style={{ marginTop: 14 }}
+            />
+          </Card>
+        )}
+
+        {/* ─── Weekly progress insight ───────────────────────── */}
+        <Card style={{ marginBottom: theme.spacing.md }}>
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+            WEEKLY PROGRESS
+          </Text>
+          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+            {weeklyProgress.takeaway}
+          </Text>
+          <View style={{ marginTop: 12 }}>
+            <ProgressLine label="Shot" value={weeklyProgress.shot.label} />
+            <ProgressLine label="Protein" value={weeklyProgress.protein.label} />
+            <ProgressLine label="Symptoms" value={weeklyProgress.symptoms.label} />
+            <ProgressLine label="Weight" value={weeklyProgress.weight.label} />
+          </View>
+          {weightMilestone.status === 'ACTIVE' && (
+            <View
+              style={[
+                styles.milestoneBadge,
+                {
+                  backgroundColor: theme.colors.surfaceMuted,
+                  borderColor: theme.colors.border,
+                  borderRadius: theme.radii.md,
+                },
+              ]}
+            >
+              <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+                WEIGHT MILESTONE
+              </Text>
+              <Text style={[theme.typography.caption, { color: theme.colors.text, marginTop: 2 }]}>
+                Down {weightMilestone.totalLost} {weightMilestone.unit} since starting · {weightMilestone.detail}
+              </Text>
+            </View>
+          )}
+          {weeklyProgress.weight.needsAnotherWeight && (
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 12, lineHeight: 18 }]}>
+              Add one weight when you can to keep your trend and doctor report accurate.
+            </Text>
+          )}
+          <View style={styles.weeklyActions}>
+            {weeklyProgress.weight.needsAnotherWeight && (
+              <Button
+                label="Add weight"
+                onPress={() => setWeightSheetOpen(true)}
+                style={styles.weeklyActionButton}
+              />
+            )}
+            <Button
+              label="View details"
+              variant={weeklyProgress.weight.needsAnotherWeight ? 'secondary' : 'primary'}
+              onPress={() => navigation.navigate('WeeklyProgress')}
+              style={styles.weeklyActionButton}
+            />
+          </View>
+        </Card>
+
+        {/* ─── Doctor report ───────────────────────────────── */}
+        <Card
+          style={{ marginBottom: theme.spacing.md }}
+          onPress={() => navigation.navigate('DoctorReport')}
+          accessibilityLabel="Doctor visit report. Create and share a GLP-1 progress summary."
+          accessibilityHint="Opens the doctor report screen"
+        >
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+            DOCTOR VISIT REPORT
+          </Text>
+          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+            Create a shareable progress summary
+          </Text>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
+            Includes shots, symptoms, weight, protein, refills, and notes for your visit.
+          </Text>
+          <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
+            Create report {'\u203a'}
+          </Text>
+        </Card>
+
         {/* ─── Protein gauge ──────────────────────────────────── */}
         <Card
           style={{ marginBottom: theme.spacing.md }}
-          onPress={() => navigation.navigate('Food')}
+          onPress={() => {
+            if (proteinTarget > 0) navigation.navigate('Food');
+            else setWeightSheetOpen(true);
+          }}
           accessibilityLabel={
             proteinTarget > 0
               ? `Protein today: ${Math.round(proteinTodayG)} of ${proteinTarget} grams. Tap to log.`
-              : 'Protein log. No target set yet — add your weight in Settings to compute one.'
+              : 'Protein log. No target set yet. Tap to add weight and compute one.'
           }
         >
           <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
@@ -450,104 +632,103 @@ export function HomeScreen(): React.ReactElement {
                 Add your weight to set a target
               </Text>
               <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-                Open Settings → Weight + Protein Target to start tracking.
+                Tap here to add weight and calculate your daily protein target.
               </Text>
             </>
           )}
         </Card>
 
-        {/* ─── Dose ladder mini ───────────────────────────────── */}
+        {/* ─── Medication ─────────────────────────────────────── */}
         <Card
           style={{ marginBottom: theme.spacing.md }}
-          onPress={() => navigation.navigate('DoseLadder')}
-          accessibilityLabel={`Dose ladder. Current dose: ${db.profile.currentDoseLabel || 'not set'}.`}
-          accessibilityHint="Opens the dose ladder screen"
+          accent={refill.alertLevel === 'URGENT' || refill.alertLevel === 'EMPTY'}
         >
           <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
-            DOSE LADDER
+            MEDICATION
           </Text>
-          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-            {db.profile.currentDoseLabel || 'Not set'}
-          </Text>
-          {!db.profile.currentDoseMg ? (
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-              Tap to set your starting dose.
-            </Text>
-          ) : upcomingRung && daysToBump !== null ? (
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-              Next bump {'\u2192'} {upcomingRung.label}{' '}
-              {daysToBump === 0 ? '(eligible now)' : `in ${daysToBump} day${daysToBump === 1 ? '' : 's'}`}
-            </Text>
-          ) : (
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-              At top of ladder. Talk to your doctor about maintenance.
-            </Text>
-          )}
-        </Card>
-
-        {/* ─── Refill ─────────────────────────────────────────── */}
-        <Card
-          style={{ marginBottom: theme.spacing.md }}
-          onPress={() => navigation.navigate('Refill')}
-          accent={refill.alertLevel === 'URGENT' || refill.alertLevel === 'EMPTY'}
-          accessibilityLabel={
-            refill.unconfigured
-              ? 'Set up refill tracking'
-              : `Refill: ${refill.dosesRemaining} of ${refill.dosesPerPen} doses left. Status: ${refill.alertLevel.toLowerCase()}.`
-          }
-          accessibilityHint="Opens the refill screen"
-        >
-          <Text
-            style={[
-              theme.typography.captionMedium,
-              {
-                color:
-                  refill.alertLevel === 'URGENT' || refill.alertLevel === 'EMPTY'
-                    ? theme.colors.danger
-                    : refill.alertLevel === 'INFO'
-                      ? theme.colors.warning
-                      : theme.colors.textMuted,
-              },
-            ]}
-          >
-            REFILL
-          </Text>
-          {refill.unconfigured ? (
-            <Text style={[theme.typography.body, { color: theme.colors.text, marginTop: 4 }]}>
-              Set up refill tracking →
-            </Text>
-          ) : (
-            <>
-              <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                {refill.dosesRemaining} of {refill.dosesPerPen} dose
-                {refill.dosesPerPen === 1 ? '' : 's'} left
-              </Text>
-              <Text
-                style={[
-                  theme.typography.caption,
-                  {
-                    color:
-                      refill.alertLevel === 'URGENT' || refill.alertLevel === 'EMPTY'
-                        ? theme.colors.danger
-                        : theme.colors.textMuted,
-                    marginTop: 6,
-                  },
-                ]}
-              >
-                {refill.alertLevel === 'EMPTY'
-                  ? 'Empty — refill before your next shot.'
+          <MedicationRow
+            title={`Dose: ${db.profile.currentDoseLabel || 'Not set'}`}
+            detail={
+              !db.profile.currentDoseMg
+                ? 'Set your starting dose.'
+                : upcomingRung && daysToBump !== null
+                  ? `Next: ${upcomingRung.label} ${daysToBump === 0 ? 'eligible now' : `in ${daysToBump} day${daysToBump === 1 ? '' : 's'}`}`
+                  : 'At top of ladder. Discuss maintenance with your doctor.'
+            }
+            onPress={() => navigation.navigate('DoseLadder')}
+            accessibilityLabel={`Dose. Current dose: ${db.profile.currentDoseLabel || 'not set'}.`}
+          />
+          <View style={[styles.medicationDivider, { backgroundColor: theme.colors.border }]} />
+          <MedicationRow
+            title={
+              refill.unconfigured
+                ? 'Refill: not set'
+                : `Refill: ${refill.dosesRemaining}/${refill.dosesPerPen} dose${refill.dosesPerPen === 1 ? '' : 's'} left`
+            }
+            detail={
+              refill.unconfigured
+                ? 'Set up refill tracking.'
+                : refill.alertLevel === 'EMPTY'
+                  ? 'Empty. Refill before your next shot.'
                   : refill.alertLevel === 'URGENT'
                     ? refill.refillRequested
-                      ? 'Refill requested. Pick up soon.'
-                      : 'Tap to request a refill.'
+                      ? 'Requested. Mark picked up when ready.'
+                      : 'Running low. Review refill.'
                     : refill.alertLevel === 'INFO'
-                      ? 'Heads up — running low.'
-                      : 'You\u2019re stocked.'}
-              </Text>
-            </>
-          )}
+                      ? 'Heads up. Running low.'
+                      : 'You’re stocked.'
+            }
+            tone={
+              refill.alertLevel === 'URGENT' || refill.alertLevel === 'EMPTY'
+                ? 'danger'
+                : refill.alertLevel === 'INFO'
+                  ? 'warning'
+                  : 'default'
+            }
+            onPress={() => navigation.navigate('Refill')}
+            accessibilityLabel={
+              refill.unconfigured
+                ? 'Refill not set. Opens refill tracking.'
+                : `Refill ${refill.dosesRemaining} of ${refill.dosesPerPen} doses left.`
+            }
+          />
         </Card>
       </ScrollView>
+      <AddWeightSheet
+        visible={weightSheetOpen}
+        initialWeight={db.profile.weight}
+        initialUnit={db.profile.weightUnit}
+        onClose={() => setWeightSheetOpen(false)}
+        onSave={(weight, unit, note) => {
+          const nowIso = new Date().toISOString();
+          updateDb((prev) => ({
+            ...prev,
+            profile: {
+              ...prev.profile,
+              weight,
+              weightUnit: unit,
+              weightUpdatedAt: nowIso,
+            },
+            weightEntries: [
+              ...prev.weightEntries,
+              {
+                id: `weight-${Date.now()}`,
+                loggedAt: nowIso,
+                weight,
+                unit,
+                note: note ?? 'Weekly check-in',
+              },
+            ],
+          }));
+          setWeightSheetOpen(false);
+        }}
+      />
+      <SmartAlertsSheet
+        visible={alertsOpen}
+        alerts={smartAlerts}
+        onClose={() => setAlertsOpen(false)}
+        onAction={onAlertAction}
+      />
     </SafeAreaView>
   );
 }
@@ -559,17 +740,107 @@ function greeting(now: Date): string {
   return 'Good evening';
 }
 
-function labelDay(day: string): string {
-  const map: Record<string, string> = {
-    SUNDAY: 'Sunday',
-    MONDAY: 'Monday',
-    TUESDAY: 'Tuesday',
-    WEDNESDAY: 'Wednesday',
-    THURSDAY: 'Thursday',
-    FRIDAY: 'Friday',
-    SATURDAY: 'Saturday',
-  };
-  return map[day] ?? 'shot day';
+function CoachChip({
+  action,
+  onPress,
+}: {
+  action: CoachAction;
+  onPress: () => void;
+}): React.ReactElement {
+  const theme = useTheme();
+  const Icon = ACTION_ICONS[action.icon];
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
+      style={({ pressed }) => [
+        styles.coachChip,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderColor: theme.colors.border,
+          borderRadius: theme.radii.full,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <Icon size={14} color={theme.colors.primary} strokeWidth={2.2} />
+      <Text style={[theme.typography.captionMedium, { color: theme.colors.text }]}>
+        {action.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function MedicationRow({
+  title,
+  detail,
+  tone = 'default',
+  onPress,
+  accessibilityLabel,
+}: {
+  title: string;
+  detail: string;
+  tone?: 'default' | 'warning' | 'danger';
+  onPress: () => void;
+  accessibilityLabel: string;
+}): React.ReactElement {
+  const theme = useTheme();
+  const detailColor =
+    tone === 'danger'
+      ? theme.colors.danger
+      : tone === 'warning'
+        ? theme.colors.warning
+        : theme.colors.textMuted;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [styles.medicationRow, { opacity: pressed ? 0.72 : 1 }]}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
+          {title}
+        </Text>
+        <Text style={[theme.typography.caption, { color: detailColor, marginTop: 3, lineHeight: 18 }]}>
+          {detail}
+        </Text>
+      </View>
+      <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
+        {'\u203a'}
+      </Text>
+    </Pressable>
+  );
+}
+
+function ProgressLine({ label, value }: { label: string; value: string }): React.ReactElement {
+  const theme = useTheme();
+  return (
+    <View style={styles.progressLine}>
+      <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
+        {label}
+      </Text>
+      <Text style={[theme.typography.caption, { color: theme.colors.text, flex: 1, textAlign: 'right' }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function ChecklistLine({ label, completed }: { label: string; completed: boolean }): React.ReactElement {
+  const theme = useTheme();
+  return (
+    <View style={styles.checklistLine}>
+      <Text style={[theme.typography.captionMedium, { color: completed ? theme.colors.success : theme.colors.textMuted }]}>
+        {completed ? '✓' : '□'}
+      </Text>
+      <Text style={[theme.typography.caption, { color: completed ? theme.colors.text : theme.colors.textMuted, flex: 1 }]}>
+        {label}
+      </Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -580,11 +851,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
   },
-  historyButton: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerIconButton: {
     width: 36,
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  alertBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 999,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  alertBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 11,
   },
   banner: {
     flexDirection: 'row',
@@ -611,5 +905,55 @@ const styles = StyleSheet.create({
   topCardRing: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  coachActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  coachChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  medicationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  medicationDivider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  progressLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 6,
+  },
+  weeklyActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  weeklyActionButton: {
+    flex: 1,
+  },
+  milestoneBadge: {
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  checklistLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
   },
 });

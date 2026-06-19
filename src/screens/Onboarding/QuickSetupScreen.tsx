@@ -153,6 +153,18 @@ export function QuickSetupScreen({}: Props): React.ReactElement {
                 },
               ]
             : prev.doseHistory,
+        weightEntries: weightValid
+          ? [
+              ...prev.weightEntries,
+              {
+                id: `weight-${Date.now()}`,
+                loggedAt: nowIso,
+                weight,
+                unit,
+                note: 'Initial setup',
+              },
+            ]
+          : prev.weightEntries,
       }));
     } finally {
       setBusy(false);

@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { DateTimePickerSheet } from '../../components/DateTimePickerSheet';
+import { dateOnly } from '../../domain/dateMath';
 import { defaultDosesPerPen, refillStatus } from '../../domain/refill';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -62,25 +63,74 @@ export function RefillScreen(): React.ReactElement {
       Alert.alert('Pick a date', 'Tap "Last filled" and choose when this pen was filled.');
       return;
     }
-    updateDb((prev) => ({
-      ...prev,
-      refill: {
+    updateDb((prev) => {
+      const nowIso = new Date().toISOString();
+      const lastFilledAt = dateOnly(filledDate).toISOString();
+      const prior = prev.refill;
+      const nextRefill = {
         dosesPerPen: dosesPerPenNum,
-        lastFilledAt: filledDate.toISOString(),
-        refillRequested: prev.refill?.refillRequested ?? false,
-      },
-    }));
+        lastFilledAt,
+        refillRequested: prior?.refillRequested ?? false,
+      };
+      const refillHistory = [...prev.refillHistory];
+      if (!prior) {
+        refillHistory.push({
+          id: `refill-${Date.now()}-setup`,
+          type: 'SETUP',
+          loggedAt: nowIso,
+          dosesPerPen: dosesPerPenNum,
+          lastFilledAt,
+        });
+      } else {
+        if (prior.lastFilledAt !== lastFilledAt) {
+          refillHistory.push({
+            id: `refill-${Date.now()}-last-filled`,
+            type: 'LAST_FILLED_CHANGED',
+            loggedAt: nowIso,
+            dosesPerPen: dosesPerPenNum,
+            lastFilledAt,
+          });
+        }
+        if (prior.dosesPerPen !== dosesPerPenNum) {
+          refillHistory.push({
+            id: `refill-${Date.now()}-config`,
+            type: 'CONFIG_CHANGED',
+            loggedAt: nowIso,
+            dosesPerPen: dosesPerPenNum,
+            lastFilledAt,
+          });
+        }
+      }
+      return {
+        ...prev,
+        refill: nextRefill,
+        refillHistory,
+      };
+    });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     Alert.alert('Saved', 'Refill tracking is on.');
   };
 
   const onToggleRequested = (next: boolean): void => {
-    updateDb((prev) => ({
-      ...prev,
-      refill: prev.refill
-        ? { ...prev.refill, refillRequested: next }
-        : prev.refill,
-    }));
+    updateDb((prev) => {
+      if (!prev.refill) return prev;
+      return {
+        ...prev,
+        refill: { ...prev.refill, refillRequested: next },
+        refillHistory: next
+          ? [
+              ...prev.refillHistory,
+              {
+                id: `refill-${Date.now()}-requested`,
+                type: 'REQUESTED',
+                loggedAt: new Date().toISOString(),
+                dosesPerPen: prev.refill.dosesPerPen,
+                lastFilledAt: prev.refill.lastFilledAt,
+              },
+            ]
+          : prev.refillHistory,
+      };
+    });
     Haptics.selectionAsync().catch(() => {});
   };
 
@@ -95,13 +145,24 @@ export function RefillScreen(): React.ReactElement {
           style: 'default',
           onPress: () => {
             const pickedUpAt = new Date();
+            const pickedUpDayIso = dateOnly(pickedUpAt).toISOString();
             updateDb((prev) => ({
               ...prev,
               refill: {
                 dosesPerPen: prev.refill?.dosesPerPen ?? defaultDosesPerPen(prev.profile.drug),
-                lastFilledAt: pickedUpAt.toISOString(),
+                lastFilledAt: pickedUpDayIso,
                 refillRequested: false,
               },
+              refillHistory: [
+                ...prev.refillHistory,
+                {
+                  id: `refill-${Date.now()}-picked-up`,
+                  type: 'PICKED_UP',
+                  loggedAt: pickedUpAt.toISOString(),
+                  dosesPerPen: prev.refill?.dosesPerPen ?? defaultDosesPerPen(prev.profile.drug),
+                  lastFilledAt: pickedUpDayIso,
+                },
+              ],
             }));
             setFilledDate(pickedUpAt);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});

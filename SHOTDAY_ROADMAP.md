@@ -300,6 +300,90 @@ clean, lint clean.
 
 ---
 
+## Phase I — Doctor Report PDF (post-launch binary update)
+
+**Goal:** turn the current doctor-report text share flow into a professional PDF the user can save, email, AirDrop, or bring to a visit.
+
+Why this is post-launch:
+- PDF generation will likely require native Expo modules such as `expo-print`, `expo-sharing`, and possibly `expo-file-system`.
+- Adding those packages means a new native binary, so this is **EAS Build + App Store update**, not only `eas update`.
+- Keep the current text report as the fast OTA-safe version; add PDF after the first App Store approval/release.
+
+Scope:
+- Add `expo-print` to generate an HTML-backed PDF from `buildDoctorReport(...)`.
+- Add `expo-sharing` or file-based share flow so users can share the PDF document, not just text.
+- Design a clean one-page-first PDF layout:
+  - Header: Shotday Doctor Visit Report + generated date
+  - Current drug + dose
+  - Injection history summary
+  - Missed / late shots
+  - Side effects by week
+  - Weight trend
+  - Protein trend
+  - Refill history
+  - Notes for doctor visit
+  - Medical disclaimer footer
+- Add a segmented choice on the Doctor Report screen:
+  - `Share text`
+  - `Export PDF`
+- Add tests for HTML/PDF content generation as pure string output; manually verify generated PDF on iPhone/TestFlight.
+
+**Deliverable:** a doctor-ready PDF report that looks professional enough to email to a clinician.
+
+---
+
+## Phase J — Smart Alerts Center (OTA-safe)
+
+**Goal:** keep users from missing the small data entries Shotday needs to calculate useful progress, milestones, and doctor-ready summaries.
+
+Why this matters:
+- If users do not enter data for 1-2 weeks, the app feels empty and less worth paying for.
+- Weight milestones, weekly progress, protein targets, symptom trends, and doctor reports all depend on timely user-entered data.
+- A lightweight in-app alerts center can gently guide users without making Home feel noisy.
+
+UX:
+- Add a bell icon in the Home header next to the History icon.
+- Show an unread count badge on the bell when active alerts need attention.
+- Tapping the bell opens a bottom sheet / slider.
+- Each alert shows:
+  - Alert name
+  - Clear detail explaining what is missing and why it matters
+  - Read/unread state
+  - Optional small thin action chip, not a full button
+  - Optional lucide icon inside the chip based on the alert type
+- Alerts expire after 30 days.
+- Completed alerts disappear automatically once the required data is added.
+
+Core alert types:
+- **Log this week's shot** — needed for adherence, weekly progress, missed/late shot calculation, and doctor report accuracy.
+- **Add this week's weight** — needed for weight trend, weight-loss milestones, protein target accuracy, weekly progress, and doctor report accuracy.
+- **Check symptoms after shot** — needed to compare this cycle vs. last cycle and support doctor visit summaries.
+- **Log protein today** — shown when the protein target exists but today's protein is missing.
+- **Refill coming up** — helps prevent medication supply gaps.
+- **Refill setup missing** — shown when refill tracking is not configured.
+- **Doctor report ready** — read-only or action alert when enough recent data exists to create a useful report.
+- **Export / backup reminder** — every 30 days, remind the user they can export JSON/CSV from Settings for personal backup.
+
+Action chip examples:
+- `Scale` icon + `Add weight`
+- `Syringe` icon + `Log shot`
+- `HeartPulse` icon + `Check symptoms`
+- `Utensils` icon + `Log protein`
+- `Pill` icon + `Set refill`
+- `FileText` icon + `Create report`
+- `Download` icon + `Export data`
+
+Implementation notes:
+- Build alerts from pure domain logic, for example `buildSmartAlerts(db, now, alertState)`.
+- Store only alert read/dismiss metadata in AsyncStorage; derive the alert list from current user data so it stays accurate.
+- Use friendly guidance language, not scary warning language.
+- Keep Home quiet: only the bell badge surfaces count; alert details live inside the sheet.
+- Start with in-app alerts. Add push/local notification tie-ins later only for truly time-based reminders.
+
+**Deliverable:** users get clear, timely prompts to add the data Shotday needs, without adding friction or confusion.
+
+---
+
 ## Total estimate
 
 | Phase | Time | Cumulative |
@@ -311,6 +395,8 @@ clean, lint clean.
 | F | 3 hrs | 10.5 hrs |
 | G | 2 hrs | 12.5 hrs |
 | H | 2.5 hrs | 15 hrs |
+| I (post-launch) | 2–3 hrs + EAS Build | next app update |
+| J (OTA-safe) | 2–3 hrs | next `eas update` candidate |
 
 **~15 hours of focused work + Apple review (1–7 days).**
 
