@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import Animated, {
+  useAnimatedProps,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, Line, Path, Rect } from 'react-native-svg';
 import type { InjectionZone } from '../../types/domain';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const ZONE_A11Y_LABEL: Record<InjectionZone, string> = {
   BELLY_UL: 'Upper-left belly',
@@ -137,18 +146,39 @@ function ZoneCircle({ cx, cy, zone, state, onPress }: ZoneCircleProps): React.Re
     ? `${ZONE_A11Y_LABEL[zone]}, suggested site`
     : ZONE_A11Y_LABEL[zone];
   const press = (): void => onPress(zone);
+
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    if (state.pulsing) {
+      pulse.value = withRepeat(
+        withTiming(1, { duration: 1600, easing: Easing.out(Easing.ease) }),
+        -1,
+        false
+      );
+    } else {
+      pulse.value = 0;
+    }
+  }, [state.pulsing]);
+
+  const animatedProps = useAnimatedProps(() => {
+    return {
+      r: r + 1 + pulse.value * 9,
+      strokeOpacity: 0.5 * (1 - pulse.value),
+    };
+  });
+
   return (
     <>
       {/* Optional pulsing outer ring for the "suggested next" zone. */}
       {state.pulsing && (
-        <Circle
+        <AnimatedCircle
           cx={cx}
           cy={cy}
-          r={r + 6}
           fill="none"
           stroke={state.stroke}
-          strokeOpacity={0.35}
-          strokeWidth={3}
+          strokeWidth={2.5}
+          animatedProps={animatedProps}
         />
       )}
       <Circle
