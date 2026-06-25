@@ -33,6 +33,7 @@ import {
   TERMS_URL,
 } from '../../copy/subscription';
 import { isOffLadder } from '../../domain/dose';
+import { refillStatus } from '../../domain/refill';
 import {
   computeEntitlement,
   trialDaysRemaining,
@@ -99,6 +100,7 @@ export function SettingsScreen(): React.ReactElement {
   const ent = computeEntitlement(profile, new Date());
   const trialDays = trialDaysRemaining(profile, new Date());
   const isDev = Boolean((globalThis as { __DEV__?: boolean }).__DEV__ ?? false);
+  const refill = useMemo(() => refillStatus(profile, db.injections), [profile, db.injections]);
 
   const proteinTarget = (() => {
     if (profile.weight <= 0) return 0;
@@ -344,7 +346,7 @@ export function SettingsScreen(): React.ReactElement {
         </Section>
 
         {/* ─── Profile ───────────────────────────────────── */}
-        <Section title="DRUG + DOSE" theme={theme}>
+        <Section title="MEDICATION & REFILLS" theme={theme}>
           <Pressable
             onPress={openDrugEditor}
             accessibilityRole="button"
@@ -395,6 +397,40 @@ export function SettingsScreen(): React.ReactElement {
               </Text>
               <Text style={[theme.typography.bodyMedium, { color: theme.colors.text, marginTop: 2 }]}>
                 {profile.currentDoseLabel || 'Not set'}
+              </Text>
+            </View>
+            <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>›</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              if (requireProAccess()) navigation.navigate('Refill');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              refill.unconfigured
+                ? 'Refill tracking: not set. Tap to configure.'
+                : `Refill: ${refill.dosesRemaining} of ${refill.dosesPerPen} doses left.`
+            }
+            accessibilityHint="Opens refill tracking screen"
+            style={({ pressed }) => [
+              styles.row,
+              {
+                backgroundColor: theme.colors.surface,
+                borderRadius: theme.radii.md,
+                opacity: pressed ? 0.85 : 1,
+                marginTop: 8,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
+                REFILL STATUS
+              </Text>
+              <Text style={[theme.typography.bodyMedium, { color: theme.colors.text, marginTop: 2 }]}>
+                {refill.unconfigured
+                  ? 'Set up refill tracking'
+                  : `${refill.dosesRemaining} / ${refill.dosesPerPen} doses left`}
               </Text>
             </View>
             <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>›</Text>

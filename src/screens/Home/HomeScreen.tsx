@@ -370,23 +370,6 @@ export function HomeScreen(): React.ReactElement {
                 </View>
               )}
             </Pressable>
-            <Pressable
-              onPress={() => navigation.navigate('History')}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Open history"
-              accessibilityHint="Shows everything you have logged"
-              style={({ pressed }) => [
-                styles.headerIconButton,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderRadius: 999,
-                  opacity: pressed ? 0.6 : 1,
-                },
-              ]}
-            >
-              <History size={18} color={theme.colors.text} strokeWidth={2} />
-            </Pressable>
           </View>
         </View>
 
@@ -579,19 +562,18 @@ export function HomeScreen(): React.ReactElement {
         )}
 
         {/* ─── Weekly progress insight ───────────────────────── */}
-        <Card style={{ marginBottom: theme.spacing.md }}>
+        <Card
+          style={{ marginBottom: theme.spacing.md }}
+          onPress={openWeeklyProgress}
+          accessibilityLabel={`Weekly progress. ${weeklyProgress.takeaway}`}
+          accessibilityHint="Opens the weekly progress screen"
+        >
           <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
             WEEKLY PROGRESS
           </Text>
           <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
             {weeklyProgress.takeaway}
           </Text>
-          <View style={{ marginTop: 12 }}>
-            <ProgressLine label="Shot" value={weeklyProgress.shot.label} />
-            <ProgressLine label="Protein" value={weeklyProgress.protein.label} />
-            <ProgressLine label="Symptoms" value={weeklyProgress.symptoms.label} />
-            <ProgressLine label="Weight" value={weeklyProgress.weight.label} />
-          </View>
           {weightMilestone.status === 'ACTIVE' && (
             <View
               style={[
@@ -600,6 +582,7 @@ export function HomeScreen(): React.ReactElement {
                   backgroundColor: theme.colors.surfaceMuted,
                   borderColor: theme.colors.border,
                   borderRadius: theme.radii.md,
+                  marginTop: 10,
                 },
               ]}
             >
@@ -611,26 +594,9 @@ export function HomeScreen(): React.ReactElement {
               </Text>
             </View>
           )}
-          {weeklyProgress.weight.needsAnotherWeight && (
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 12, lineHeight: 18 }]}>
-              Add one weight when you can to keep your trend and doctor report accurate.
-            </Text>
-          )}
-          <View style={styles.weeklyActions}>
-            {weeklyProgress.weight.needsAnotherWeight && (
-              <Button
-                label="Add weight"
-                onPress={openWeightSheet}
-                style={styles.weeklyActionButton}
-              />
-            )}
-            <Button
-              label="View details"
-              variant={weeklyProgress.weight.needsAnotherWeight ? 'secondary' : 'primary'}
-              onPress={openWeeklyProgress}
-              style={styles.weeklyActionButton}
-            />
-          </View>
+          <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
+            View details {'\u203a'}
+          </Text>
         </Card>
 
 
@@ -647,105 +613,71 @@ export function HomeScreen(): React.ReactElement {
               : 'Protein log. No target set yet. Tap to add weight and compute one.'
           }
         >
-          <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
-            PROTEIN TODAY
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
+              PROTEIN TODAY
+            </Text>
+            {proteinTarget > 0 && (
+              <Text style={[theme.typography.captionMedium, { color: theme.colors.text }]}>
+                {Math.round(proteinTodayG)} / {proteinTarget} g
+              </Text>
+            )}
+          </View>
           {proteinTarget > 0 ? (
-            <>
-              <View style={styles.gaugeRow}>
-                <Text style={[theme.typography.hero, { color: theme.colors.text }]}>
-                  {Math.round(proteinTodayG)}
-                </Text>
-                <Text
-                  style={[
-                    theme.typography.body,
-                    { color: theme.colors.textMuted, marginLeft: 6, marginBottom: 6 },
-                  ]}
-                >
-                  / {proteinTarget} g
-                </Text>
-              </View>
-              <View style={[styles.gaugeBar, { backgroundColor: theme.colors.surfaceMuted }]}>
-                <View
-                  style={{
-                    width: `${Math.min(100, proteinPct * 100)}%`,
-                    height: '100%',
-                    backgroundColor: proteinPct >= 1 ? theme.colors.success : theme.colors.primary,
-                    borderRadius: 4,
-                  }}
-                />
-              </View>
-              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 8 }]}>
-                Tap to log a quick add.
-              </Text>
-            </>
+            <View style={[styles.gaugeBar, { backgroundColor: theme.colors.surfaceMuted, marginTop: 10, marginBottom: 2 }]}>
+              <View
+                style={{
+                  width: `${Math.min(100, proteinPct * 100)}%`,
+                  height: '100%',
+                  backgroundColor: proteinPct >= 1 ? theme.colors.success : theme.colors.primary,
+                  borderRadius: 4,
+                }}
+              />
+            </View>
           ) : (
-            <>
-              <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                Add your weight to set a target
+            <View style={{ marginTop: 6 }}>
+              <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
+                Set daily protein target
               </Text>
-              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-                Tap here to add weight and calculate your daily protein target.
+              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                Tap to add weight and calculate daily target.
               </Text>
-            </>
+            </View>
           )}
         </Card>
 
-        {/* ─── Medication ─────────────────────────────────────── */}
-        <Card
-          style={{ marginBottom: theme.spacing.md }}
-          accent={refill.alertLevel === 'URGENT' || refill.alertLevel === 'EMPTY'}
+        {/* ─── History & charts shortcut ───────────────────────── */}
+        <Pressable
+          onPress={() => navigation.navigate('History')}
+          accessibilityRole="button"
+          accessibilityLabel="View history and progress charts"
+          accessibilityHint="Opens the calendar, timeline, and charts screen"
         >
-          <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
-            MEDICATION
-          </Text>
-          <MedicationRow
-            title={`Dose: ${db.profile.currentDoseLabel || 'Not set'}`}
-            detail={
-              !db.profile.currentDoseMg
-                ? 'Set your starting dose.'
-                : upcomingRung && daysToBump !== null
-                  ? `Next: ${upcomingRung.label} ${daysToBump === 0 ? 'eligible now' : `in ${daysToBump} day${daysToBump === 1 ? '' : 's'}`}`
-                  : 'At top of ladder. Discuss maintenance with your doctor.'
-            }
-            onPress={openDoseLadder}
-            accessibilityLabel={`Dose. Current dose: ${db.profile.currentDoseLabel || 'not set'}.`}
-          />
-          <View style={[styles.medicationDivider, { backgroundColor: theme.colors.border }]} />
-          <MedicationRow
-            title={
-              refill.unconfigured
-                ? 'Refill: not set'
-                : `Refill: ${refill.dosesRemaining}/${refill.dosesPerPen} dose${refill.dosesPerPen === 1 ? '' : 's'} left`
-            }
-            detail={
-              refill.unconfigured
-                ? 'Set up refill tracking.'
-                : refill.alertLevel === 'EMPTY'
-                  ? 'Empty. Refill before your next shot.'
-                  : refill.alertLevel === 'URGENT'
-                    ? refill.refillRequested
-                      ? 'Requested. Mark picked up when ready.'
-                      : 'Running low. Review refill.'
-                    : refill.alertLevel === 'INFO'
-                      ? 'Heads up. Running low.'
-                      : 'You’re stocked.'
-            }
-            tone={
-              refill.alertLevel === 'URGENT' || refill.alertLevel === 'EMPTY'
-                ? 'danger'
-                : refill.alertLevel === 'INFO'
-                  ? 'warning'
-                  : 'default'
-            }
-            onPress={openRefill}
-            accessibilityLabel={
-              refill.unconfigured
-                ? 'Refill not set. Opens refill tracking.'
-                : `Refill ${refill.dosesRemaining} of ${refill.dosesPerPen} doses left.`
-            }
-          />
-        </Card>
+          {({ pressed }) => (
+            <View
+              style={[
+                styles.banner,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: theme.radii.md,
+                  borderColor: theme.colors.border,
+                  opacity: pressed ? 0.9 : 1,
+                  marginTop: theme.spacing.sm,
+                  marginBottom: theme.spacing.xl,
+                },
+              ]}
+            >
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[theme.typography.bodyMedium, { color: theme.colors.text, fontWeight: '600' }]}>
+                  View history, calendar & charts
+                </Text>
+                <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, fontWeight: '600' }]}>
+                  ›
+                </Text>
+              </View>
+            </View>
+          )}
+        </Pressable>
       </ScrollView>
       <AddWeightSheet
         visible={weightSheetOpen}
