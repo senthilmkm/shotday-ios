@@ -591,6 +591,33 @@ export function SettingsScreen(): React.ReactElement {
         {/* ─── Data export ───────────────────────────────── */}
         <Section title="YOUR DATA" theme={theme}>
           <Pressable
+            onPress={() => {
+              if (requireProAccess()) navigation.navigate('DoctorReport');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Doctor visit report"
+            accessibilityHint="Opens the doctor report screen to customize and share your progress summary"
+            style={({ pressed }) => [
+              styles.row,
+              {
+                backgroundColor: theme.colors.surface,
+                borderRadius: theme.radii.md,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
+                Doctor visit report
+              </Text>
+              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                Create and share a GLP-1 progress summary for your doctor
+              </Text>
+            </View>
+            <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>›</Text>
+          </Pressable>
+
+          <Pressable
             onPress={onExport}
             accessibilityRole="button"
             accessibilityLabel="Export your data"
@@ -601,6 +628,7 @@ export function SettingsScreen(): React.ReactElement {
                 backgroundColor: theme.colors.surface,
                 borderRadius: theme.radii.md,
                 opacity: pressed ? 0.85 : 1,
+                marginTop: 8,
               },
             ]}
           >

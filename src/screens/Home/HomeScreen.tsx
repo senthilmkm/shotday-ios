@@ -633,26 +633,6 @@ export function HomeScreen(): React.ReactElement {
           </View>
         </Card>
 
-        {/* ─── Doctor report ───────────────────────────────── */}
-        <Card
-          style={{ marginBottom: theme.spacing.md }}
-          onPress={openDoctorReport}
-          accessibilityLabel="Doctor visit report. Create and share a GLP-1 progress summary."
-          accessibilityHint="Opens the doctor report screen"
-        >
-          <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-            DOCTOR VISIT REPORT
-          </Text>
-          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-            Create a shareable progress summary
-          </Text>
-          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-            Includes shots, symptoms, weight, protein, refills, and notes for your visit.
-          </Text>
-          <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
-            View report {'\u203a'}
-          </Text>
-        </Card>
 
         {/* ─── Protein gauge ──────────────────────────────────── */}
         <Card
