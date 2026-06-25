@@ -81,7 +81,7 @@ export function PaywallScreen(): React.ReactElement {
     if (!isIapAvailable()) {
       Alert.alert(
         'Subscription unavailable',
-        'Purchases require a native development build. In Expo Go you can still test all the features — your trial continues. Use the Settings → Dev Tools toggle to simulate a Pro account.',
+        unavailablePurchaseMessage(ent),
       );
       return;
     }
@@ -116,7 +116,7 @@ export function PaywallScreen(): React.ReactElement {
     } else if (result.error === 'unavailable') {
       Alert.alert(
         'Unavailable here',
-        'Restore requires a native build. Tap "Continue without subscribing" to keep using the app for now.',
+        'Restore requires a native build. If you are testing locally, use Settings → Dev Tools to simulate a Pro account.',
       );
     } else {
       Alert.alert('No active subscription', 'We didn\u2019t find an active subscription on this Apple ID.');
@@ -387,6 +387,13 @@ function purchaseCtaLabel(ent: string): string {
     default:
       return `Start ${FREE_TRIAL_LABEL}`;
   }
+}
+
+function unavailablePurchaseMessage(ent: string): string {
+  if (ent === 'EXPIRED') {
+    return 'Purchases require a native development build. If you are testing locally, use Settings → Dev Tools to simulate a Pro account.';
+  }
+  return 'Purchases require a native development build. In Expo Go you can still test all the features while your trial is active. Use the Settings → Dev Tools toggle to simulate a Pro account.';
 }
 
 const styles = StyleSheet.create({

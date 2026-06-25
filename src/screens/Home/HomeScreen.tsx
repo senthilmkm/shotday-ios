@@ -50,6 +50,7 @@ import {
 import { buildTodaysCoach, type CoachAction } from '../../domain/todaysCoach';
 import { weightMilestoneSummary } from '../../domain/weight';
 import { summarizeWeeklyProgress } from '../../domain/weeklyProgress';
+import { useProAccess } from '../../hooks/useProAccess';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
@@ -88,6 +89,7 @@ export function HomeScreen(): React.ReactElement {
   const [reviewPromptShownThisSession, setReviewPromptShownThisSession] = useState(false);
 
   const [today, setToday] = useState(() => new Date());
+  const { hasProAccess, requireProAccess } = useProAccess(today);
 
   useEffect(() => {
     const refresh = (): void => setToday(new Date());
@@ -122,15 +124,48 @@ export function HomeScreen(): React.ReactElement {
     () => buildSmartAlerts(db, today),
     [db, today],
   );
-  const unreadAlerts = unreadSmartAlertCount(smartAlerts);
+  const unreadAlerts = hasProAccess ? unreadSmartAlertCount(smartAlerts) : 0;
 
   const openAlerts = (): void => {
+    if (!requireProAccess()) return;
     setAlertsOpen(true);
     if (smartAlerts.length === 0 || unreadAlerts === 0) return;
     updateDb((prev) => ({
       ...prev,
       smartAlerts: markSmartAlertsSeen(prev.smartAlerts, smartAlerts, new Date()),
     }));
+  };
+
+  const openDoseLadder = (): void => {
+    if (requireProAccess()) navigation.navigate('DoseLadder');
+  };
+
+  const openShotLog = (): void => {
+    if (requireProAccess()) navigation.navigate('Shot');
+  };
+
+  const openWeightSheet = (): void => {
+    if (requireProAccess()) setWeightSheetOpen(true);
+  };
+
+  const openSymptomsLog = (): void => {
+    if (requireProAccess()) navigation.navigate('Symptoms');
+  };
+
+  const openFoodLog = (): void => {
+    if (requireProAccess()) navigation.navigate('Food');
+  };
+
+  const openRefill = (): void => {
+    if (requireProAccess()) navigation.navigate('Refill');
+  };
+
+  const openWeeklyProgress = (): void => {
+    if (requireProAccess()) navigation.navigate('WeeklyProgress');
+  };
+
+  const openDoctorReport = (): void => {
+    if (requireProAccess()) navigation.navigate('DoctorReport');
   };
 
   const onAlertAction = (action: SmartAlertAction): void => {
@@ -141,28 +176,28 @@ export function HomeScreen(): React.ReactElement {
     }));
     switch (action) {
       case 'DOSE':
-        navigation.navigate('DoseLadder');
+        openDoseLadder();
         return;
       case 'SHOT':
-        navigation.navigate('Shot');
+        openShotLog();
         return;
       case 'WEIGHT':
-        setWeightSheetOpen(true);
+        openWeightSheet();
         return;
       case 'SYMPTOMS':
-        navigation.navigate('Symptoms');
+        openSymptomsLog();
         return;
       case 'FOOD':
-        navigation.navigate('Food');
+        openFoodLog();
         return;
       case 'REFILL':
-        navigation.navigate('Refill');
+        openRefill();
         return;
       case 'WEEKLY_PROGRESS':
-        navigation.navigate('WeeklyProgress');
+        openWeeklyProgress();
         return;
       case 'DOCTOR_REPORT':
-        navigation.navigate('DoctorReport');
+        openDoctorReport();
         return;
       case 'SETTINGS_EXPORT':
         openExportDialog();
@@ -467,58 +502,81 @@ export function HomeScreen(): React.ReactElement {
         )}
 
         {/* ─── Today’s coach ──────────────────────────────────── */}
-        <Card
-          accent
-          style={{ marginBottom: theme.spacing.md }}
-          accessibilityLabel={`${coach.eyebrow}. ${coach.title}. ${coach.detail}. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`}
-        >
-          <View style={styles.topCardRow}>
-            <View style={styles.topCardText}>
-              <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-                {coach.eyebrow}
-              </Text>
-              <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                {coach.title}
-              </Text>
-              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
-                {coach.detail}
-              </Text>
-              {coach.checklist.length > 0 && (
-                <View style={styles.coachChecklist}>
-                  {coach.checklist.map((item) => (
-                    <CoachChecklistLine
-                      key={item.label}
-                      label={item.label}
-                      complete={item.complete}
-                    />
-                  ))}
-                </View>
-              )}
-              {coach.actions.length > 0 && (
-                <View style={styles.coachActions}>
-                  {coach.actions.map((action) => (
-                    <CoachChip
-                      key={`${action.type}-${action.label}`}
-                      action={action}
-                      onPress={() => onAlertAction(action.type)}
-                    />
-                  ))}
-                </View>
-              )}
+        {hasProAccess ? (
+          <Card
+            accent
+            style={{ marginBottom: theme.spacing.md }}
+            accessibilityLabel={`${coach.eyebrow}. ${coach.title}. ${coach.detail}. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`}
+          >
+            <View style={styles.topCardRow}>
+              <View style={styles.topCardText}>
+                <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+                  {coach.eyebrow}
+                </Text>
+                <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+                  {coach.title}
+                </Text>
+                <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+                  {coach.detail}
+                </Text>
+                {coach.checklist.length > 0 && (
+                  <View style={styles.coachChecklist}>
+                    {coach.checklist.map((item) => (
+                      <CoachChecklistLine
+                        key={item.label}
+                        label={item.label}
+                        complete={item.complete}
+                      />
+                    ))}
+                  </View>
+                )}
+                {coach.actions.length > 0 && (
+                  <View style={styles.coachActions}>
+                    {coach.actions.map((action) => (
+                      <CoachChip
+                        key={`${action.type}-${action.label}`}
+                        action={action}
+                        onPress={() => onAlertAction(action.type)}
+                      />
+                    ))}
+                  </View>
+                )}
+              </View>
+              <View style={styles.topCardRing}>
+                <AdherenceRing adherence={adherence} size={64} thickness={9} />
+                <Text
+                  style={[
+                    theme.typography.caption,
+                    { color: theme.colors.textMuted, marginTop: 4, fontSize: 10 },
+                  ]}
+                >
+                  Last {ADHERENCE_WEEKS} wks
+                </Text>
+              </View>
             </View>
-            <View style={styles.topCardRing}>
-              <AdherenceRing adherence={adherence} size={64} thickness={9} />
-              <Text
-                style={[
-                  theme.typography.caption,
-                  { color: theme.colors.textMuted, marginTop: 4, fontSize: 10 },
-                ]}
-              >
-                Last {ADHERENCE_WEEKS} wks
-              </Text>
-            </View>
-          </View>
-        </Card>
+          </Card>
+        ) : (
+          <Card
+            accent
+            style={{ marginBottom: theme.spacing.md }}
+            onPress={() => navigation.navigate('Paywall')}
+            accessibilityLabel="Today’s Coach is paused. Subscribe to unlock."
+            accessibilityHint="Opens the subscription screen"
+          >
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+              TODAY’S COACH
+            </Text>
+            <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+              Your GLP-1 coach is paused
+            </Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+              Subscribe to keep daily guidance, smart alerts, weekly progress, and doctor-ready reports active.
+            </Text>
+            <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
+              Subscribe to unlock {'\u203a'}
+            </Text>
+          </Card>
+        )}
 
         {/* ─── Weekly progress insight ───────────────────────── */}
         <Card style={{ marginBottom: theme.spacing.md }}>
@@ -562,14 +620,14 @@ export function HomeScreen(): React.ReactElement {
             {weeklyProgress.weight.needsAnotherWeight && (
               <Button
                 label="Add weight"
-                onPress={() => setWeightSheetOpen(true)}
+                onPress={openWeightSheet}
                 style={styles.weeklyActionButton}
               />
             )}
             <Button
               label="View details"
               variant={weeklyProgress.weight.needsAnotherWeight ? 'secondary' : 'primary'}
-              onPress={() => navigation.navigate('WeeklyProgress')}
+              onPress={openWeeklyProgress}
               style={styles.weeklyActionButton}
             />
           </View>
@@ -578,7 +636,7 @@ export function HomeScreen(): React.ReactElement {
         {/* ─── Doctor report ───────────────────────────────── */}
         <Card
           style={{ marginBottom: theme.spacing.md }}
-          onPress={() => navigation.navigate('DoctorReport')}
+          onPress={openDoctorReport}
           accessibilityLabel="Doctor visit report. Create and share a GLP-1 progress summary."
           accessibilityHint="Opens the doctor report screen"
         >
@@ -592,7 +650,7 @@ export function HomeScreen(): React.ReactElement {
             Includes shots, symptoms, weight, protein, refills, and notes for your visit.
           </Text>
           <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
-            Create report {'\u203a'}
+            View report {'\u203a'}
           </Text>
         </Card>
 
@@ -600,8 +658,8 @@ export function HomeScreen(): React.ReactElement {
         <Card
           style={{ marginBottom: theme.spacing.md }}
           onPress={() => {
-            if (proteinTarget > 0) navigation.navigate('Food');
-            else setWeightSheetOpen(true);
+            if (proteinTarget > 0) openFoodLog();
+            else openWeightSheet();
           }}
           accessibilityLabel={
             proteinTarget > 0
@@ -670,7 +728,7 @@ export function HomeScreen(): React.ReactElement {
                   ? `Next: ${upcomingRung.label} ${daysToBump === 0 ? 'eligible now' : `in ${daysToBump} day${daysToBump === 1 ? '' : 's'}`}`
                   : 'At top of ladder. Discuss maintenance with your doctor.'
             }
-            onPress={() => navigation.navigate('DoseLadder')}
+            onPress={openDoseLadder}
             accessibilityLabel={`Dose. Current dose: ${db.profile.currentDoseLabel || 'not set'}.`}
           />
           <View style={[styles.medicationDivider, { backgroundColor: theme.colors.border }]} />
@@ -700,7 +758,7 @@ export function HomeScreen(): React.ReactElement {
                   ? 'warning'
                   : 'default'
             }
-            onPress={() => navigation.navigate('Refill')}
+            onPress={openRefill}
             accessibilityLabel={
               refill.unconfigured
                 ? 'Refill not set. Opens refill tracking.'
@@ -715,6 +773,10 @@ export function HomeScreen(): React.ReactElement {
         initialUnit={db.profile.weightUnit}
         onClose={() => setWeightSheetOpen(false)}
         onSave={(weight, unit, note) => {
+          if (!requireProAccess()) {
+            setWeightSheetOpen(false);
+            return;
+          }
           const nowIso = new Date().toISOString();
           updateDb((prev) => ({
             ...prev,

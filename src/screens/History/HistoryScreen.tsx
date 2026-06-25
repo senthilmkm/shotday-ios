@@ -6,6 +6,7 @@ import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DateTimePickerSheet } from '../../components/DateTimePickerSheet';
+import { useProAccess } from '../../hooks/useProAccess';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -44,6 +45,7 @@ export function HistoryScreen(): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
   const { db, updateDb } = useShotdayDb();
+  const { requireProAccess } = useProAccess();
   const [mode, setMode] = useState<Mode>('list');
   // For "Edit time" on a logged shot. We render a single shared
   // DateTimePickerSheet driven by `editingInjection`. When non-null
@@ -53,6 +55,7 @@ export function HistoryScreen(): React.ReactElement {
 
   const confirmDelete = useCallback(
     (entry: TimelineEntry): void => {
+      if (!requireProAccess()) return;
       const kindLabel = entryKindLabel(entry.kind);
       Alert.alert(
         `Remove this ${kindLabel}?`,
@@ -70,7 +73,7 @@ export function HistoryScreen(): React.ReactElement {
         ],
       );
     },
-    [updateDb],
+    [requireProAccess, updateDb],
   );
 
   /**
@@ -81,6 +84,7 @@ export function HistoryScreen(): React.ReactElement {
    */
   const onEntryLongPress = useCallback(
     (entry: TimelineEntry): void => {
+      if (!requireProAccess()) return;
       if (entry.kind !== 'injection') {
         confirmDelete(entry);
         return;
@@ -102,7 +106,7 @@ export function HistoryScreen(): React.ReactElement {
         ],
       );
     },
-    [confirmDelete],
+    [confirmDelete, requireProAccess],
   );
 
   return (
@@ -191,6 +195,10 @@ export function HistoryScreen(): React.ReactElement {
         maximumDate={new Date()}
         onClose={() => setEditingInjectionId(null)}
         onConfirm={(d) => {
+          if (!requireProAccess()) {
+            setEditingInjectionId(null);
+            return;
+          }
           if (editingInjectionId) {
             const id = editingInjectionId;
             updateDb((prev) => updateInjectionTakenAt(prev, id, d));

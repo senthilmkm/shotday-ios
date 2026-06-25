@@ -40,6 +40,7 @@ import {
 import { buildCsv, buildJson } from '../../domain/export';
 import { proteinTargetGrams } from '../../domain/protein';
 import { isInQuietHours } from '../../notifications/schedule';
+import { useProAccess } from '../../hooks/useProAccess';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
 import type {
@@ -92,6 +93,7 @@ export function SettingsScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   const tabBarHeight = useBottomTabBarHeight();
   const { db, updateDb, resetDb } = useShotdayDb();
+  const { requireProAccess } = useProAccess();
   const profile = db.profile;
 
   const ent = computeEntitlement(profile, new Date());
@@ -137,12 +139,17 @@ export function SettingsScreen(): React.ReactElement {
   };
 
   const openWeightEditor = (): void => {
+    if (!requireProAccess()) return;
     setDraftWeight(profile.weight > 0 ? String(profile.weight) : '');
     setDraftUnit(profile.weightUnit);
     setWeightSheetOpen(true);
   };
 
   const onSaveWeight = (): void => {
+    if (!requireProAccess()) {
+      setWeightSheetOpen(false);
+      return;
+    }
     const w = parseFloat(draftWeight);
     if (!Number.isFinite(w) || w <= 0) {
       Alert.alert('Invalid', 'Enter a positive number.');
@@ -209,7 +216,12 @@ export function SettingsScreen(): React.ReactElement {
           `${prettyDrug(draftDrug)} uses different rung values. Past entries are kept, but pick your new dose so future shots are logged correctly.`,
           [
             { text: 'Later', style: 'cancel' },
-            { text: 'Open dose ladder', onPress: () => navigation.navigate('DoseLadder') },
+            {
+              text: 'Open dose ladder',
+              onPress: () => {
+                if (requireProAccess()) navigation.navigate('DoseLadder');
+              },
+            },
           ],
         );
       }, 350);
@@ -361,7 +373,9 @@ export function SettingsScreen(): React.ReactElement {
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate('DoseLadder')}
+            onPress={() => {
+              if (requireProAccess()) navigation.navigate('DoseLadder');
+            }}
             accessibilityRole="button"
             accessibilityLabel={`Current dose: ${profile.currentDoseLabel || 'not set'}. Opens dose ladder.`}
             accessibilityHint="Opens the dose ladder screen"

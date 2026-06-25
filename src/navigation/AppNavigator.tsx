@@ -1,6 +1,9 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React from 'react';
+import { ProtectedFeature } from '../components/ProtectedFeature';
 import { useTheme } from '../theme/ThemeProvider';
 import { DoctorReportScreen } from '../screens/DoctorReport/DoctorReportScreen';
 import { DoseLadderScreen } from '../screens/Dose/DoseLadderScreen';
@@ -35,6 +38,60 @@ export type AppStackParamList = {
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
+type Nav = NativeStackNavigationProp<AppStackParamList>;
+
+function ProtectedDoseLadderScreen(): React.ReactElement {
+  const navigation = useNavigation<Nav>();
+  return (
+    <ProtectedFeature
+      title="Unlock dose tracking"
+      body="Subscribe to keep dose changes connected to your weekly coach, smart alerts, and doctor-ready report."
+      onClose={() => navigation.goBack()}
+    >
+      <DoseLadderScreen />
+    </ProtectedFeature>
+  );
+}
+
+function ProtectedRefillScreen(): React.ReactElement {
+  const navigation = useNavigation<Nav>();
+  return (
+    <ProtectedFeature
+      title="Unlock refill tracking"
+      body="Subscribe to keep refill reminders and medication history connected to your progress report."
+      onClose={() => navigation.goBack()}
+    >
+      <RefillScreen />
+    </ProtectedFeature>
+  );
+}
+
+function ProtectedDoctorReportScreen(): React.ReactElement {
+  const navigation = useNavigation<Nav>();
+  return (
+    <ProtectedFeature
+      title="Unlock doctor-ready reports"
+      body="Subscribe to generate a shareable GLP-1 summary with shots, symptoms, weight, protein, refills, and visit notes."
+      onClose={() => navigation.goBack()}
+    >
+      <DoctorReportScreen />
+    </ProtectedFeature>
+  );
+}
+
+function ProtectedWeeklyProgressScreen(): React.ReactElement {
+  const navigation = useNavigation<Nav>();
+  return (
+    <ProtectedFeature
+      title="Unlock weekly progress"
+      body="Subscribe to keep your progress score, weight milestones, rhythm rows, and weekly coach insights active."
+      onClose={() => navigation.goBack()}
+    >
+      <WeeklyProgressScreen />
+    </ProtectedFeature>
+  );
+}
+
 export function AppNavigator(): React.ReactElement {
   const theme = useTheme();
   return (
@@ -53,7 +110,7 @@ export function AppNavigator(): React.ReactElement {
       />
       <Stack.Screen
         name="DoseLadder"
-        component={DoseLadderScreen}
+        component={ProtectedDoseLadderScreen}
         options={{
           presentation: 'modal',
           headerTitle: '',
@@ -62,7 +119,7 @@ export function AppNavigator(): React.ReactElement {
       />
       <Stack.Screen
         name="Refill"
-        component={RefillScreen}
+        component={ProtectedRefillScreen}
         options={{
           presentation: 'modal',
           headerTitle: '',
@@ -71,7 +128,7 @@ export function AppNavigator(): React.ReactElement {
       />
       <Stack.Screen
         name="DoctorReport"
-        component={DoctorReportScreen}
+        component={ProtectedDoctorReportScreen}
         options={{
           presentation: 'modal',
           headerShown: false,
@@ -81,7 +138,7 @@ export function AppNavigator(): React.ReactElement {
       />
       <Stack.Screen
         name="WeeklyProgress"
-        component={WeeklyProgressScreen}
+        component={ProtectedWeeklyProgressScreen}
         options={{
           presentation: 'modal',
           headerShown: false,
