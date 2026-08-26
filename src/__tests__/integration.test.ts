@@ -40,6 +40,12 @@ import {
 } from '../domain/entitlement';
 import { proteinTargetGrams } from '../domain/protein';
 import {
+  calculateActiveLevelAt,
+  generateMedicationCurve,
+  simulateTitration,
+  summarizeActiveLevel,
+} from '../domain/medicationLevel';
+import {
   defaultDosesPerPen,
   refillStatus,
 } from '../domain/refill';
@@ -1042,3 +1048,76 @@ describe('integration: smart alerts', () => {
     expect(unreadSmartAlertCount(reread)).toBe(0);
   });
 });
+
+describe('User Journey: Active GLP-1 Levels, Half-Life Curve & Titration Simulator', () => {
+  it('tracks multi-dose accumulation over a 4-week titration ladder', async () => {
+    const store = createMemoryStore();
+    let db = applyOnboarding(freshDb(), {
+      drug: 'ZEPBOUND',
+      currentDoseMg: 2.5,
+      currentDoseLabel: '2.5 mg',
+      shotDay: 'SUNDAY',
+    });
+
+    // Week 1 Shot
+    const week1Date = new Date('2026-08-02T09:00:00Z');
+    db = logInjection(db, 'BELLY_UL', week1Date);
+
+    // Check active level at Week 1 Day 2 (Peak)
+    const week1Peak = summarizeActiveLevel(db.injections, db.profile.drug, new Date('2026-08-03T12:00:00Z'));
+    expect(week1Peak.phase).toBe('PEAK_CONCENTRATION');
+    expect(week1Peak.currentActiveMg).toBeGreaterThan(1.5);
+
+    // Week 2 Shot
+    const week2Date = new Date('2026-08-09T09:00:00Z');
+    db = logInjection(db, 'BELLY_UR', week2Date);
+
+    // Week 3 Shot
+    const week3Date = new Date('2026-08-16T09:00:00Z');
+    db = logInjection(db, 'THIGH_L', week3Date);
+
+    // Week 4 Shot (Escalation to 5.0mg)
+    const week4Date = new Date('2026-08-23T09:00:00Z');
+    db = {
+      ...db,
+      profile: { ...db.profile, currentDoseMg: 5.0, currentDoseLabel: '5.0 mg' },
+      doseHistory: [
+        ...db.doseHistory,
+        { id: 'd2', startedAt: week4Date.toISOString(), label: '5.0 mg', mg: 5.0 },
+      ],
+      injections: [
+        ...db.injections,
+        { id: `inj-4`, takenAt: week4Date.toISOString(), zone: 'THIGH_R', doseMg: 5.0 },
+      ],
+    };
+
+    // Save and reload from storage
+    await saveDb(store, db);
+    const reloaded = await loadDb(store);
+
+    // Check active level at Week 4 Day 2
+    const week4Now = new Date('2026-08-24T12:00:00Z');
+    const week4Summary = summarizeActiveLevel(reloaded.injections, reloaded.profile.drug, week4Now);
+
+    expect(week4Summary.phase).toBe('PEAK_CONCENTRATION');
+    // Multi-shot accumulation + 5.0mg should result in significantly higher level than initial 2.5mg shot
+    expect(week4Summary.currentActiveMg).toBeGreaterThan(4.0);
+
+    // Verify curve generation over 30 days
+    const curve = generateMedicationCurve(
+      reloaded.injections,
+      reloaded.profile.drug,
+      new Date('2026-08-01T00:00:00Z'),
+      new Date('2026-08-30T00:00:00Z'),
+      6,
+    );
+    expect(curve.length).toBeGreaterThan(50);
+    expect(curve.every((p) => typeof p.activeMg === 'number')).toBe(true);
+
+    // Test titration simulation for stepping up to 7.5mg
+    const sim = simulateTitration(reloaded.injections, 'ZEPBOUND', 5.0, 7.5, 4, week4Now);
+    expect(sim.steadyStateTitrationMg).toBeGreaterThan(sim.steadyStateCurrentMg);
+    expect(sim.titrationCurve.length).toBeGreaterThan(0);
+  });
+});
+
