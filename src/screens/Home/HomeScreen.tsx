@@ -4,6 +4,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  Activity,
   Bell,
   FileText,
   HeartPulse,
@@ -11,6 +12,7 @@ import {
   Pill,
   Scale,
   Settings,
+  Share2,
   Syringe,
   Utensils,
   type LucideIcon,
@@ -22,6 +24,7 @@ import { AddWeightSheet } from '../../components/AddWeightSheet';
 import { AdherenceRing } from '../../components/AdherenceRing';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
+import { ShareableProgressCard } from '../../components/ShareableProgressCard';
 import { SoftReviewPromptSheet } from '../../components/SoftReviewPromptSheet';
 import { SmartAlertsSheet } from '../../components/SmartAlertsSheet';
 import { adherenceCount, recentWeeklyAdherence } from '../../domain/adherence';
@@ -33,6 +36,7 @@ import {
 } from '../../domain/entitlement';
 import { buildCsv, buildJson } from '../../domain/export';
 import { totalProteinForDay } from '../../domain/food';
+import { summarizeActiveLevel } from '../../domain/medicationLevel';
 import { proteinProgress, proteinTargetGrams } from '../../domain/protein';
 import { refillStatus } from '../../domain/refill';
 import {
@@ -85,6 +89,7 @@ export function HomeScreen(): React.ReactElement {
   const { db, updateDb } = useShotdayDb();
   const [weightSheetOpen, setWeightSheetOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [shareCardOpen, setShareCardOpen] = useState(false);
   const [reviewPromptOpen, setReviewPromptOpen] = useState(false);
   const [reviewPromptShownThisSession, setReviewPromptShownThisSession] = useState(false);
 
@@ -103,6 +108,12 @@ export function HomeScreen(): React.ReactElement {
     };
   }, []);
   const coach = useMemo(() => buildTodaysCoach(db, today), [db, today]);
+
+  // Active GLP-1 blood level and cycle phase
+  const activeLevel = useMemo(
+    () => summarizeActiveLevel(db.injections, db.profile.drug, today),
+    [db.injections, db.profile.drug, today],
+  );
 
   // Adherence ring: how many of the last 8 weekly windows had a shot
   // logged? The current (in-progress) week shows hollow until logged.
@@ -134,6 +145,10 @@ export function HomeScreen(): React.ReactElement {
       ...prev,
       smartAlerts: markSmartAlertsSeen(prev.smartAlerts, smartAlerts, new Date()),
     }));
+  };
+
+  const openMedicationLevels = (): void => {
+    if (requireProAccess()) navigation.navigate('MedicationLevels');
   };
 
   const openDoseLadder = (): void => {
@@ -334,6 +349,24 @@ export function HomeScreen(): React.ReactElement {
             {greeting(today)}
           </Text>
           <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => setShareCardOpen(true)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Share progress card"
+              accessibilityHint="Opens shareable milestone and progress card"
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 999,
+                  opacity: pressed ? 0.6 : 1,
+                  marginRight: 8,
+                },
+              ]}
+            >
+              <Share2 size={18} color={theme.colors.primary} strokeWidth={2} />
+            </Pressable>
             <Pressable
               onPress={openAlerts}
               hitSlop={12}
@@ -561,6 +594,76 @@ export function HomeScreen(): React.ReactElement {
           </Card>
         )}
 
+        {/* ─── Active medication level & half-life ────────────── */}
+        <Card
+          style={{ marginBottom: theme.spacing.md }}
+          onPress={openMedicationLevels}
+          accessibilityLabel={`Active medication level: ${activeLevel.currentActiveMg} mg. Phase: ${activeLevel.headline}. Tap to view live curve and titration simulator.`}
+          accessibilityHint="Opens the medication levels and half-life curve screen"
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+              ESTIMATED ACTIVE LEVEL
+            </Text>
+            <View
+              style={[
+                styles.phaseBadgeMini,
+                {
+                  backgroundColor:
+                    activeLevel.phase === 'PEAK_CONCENTRATION'
+                      ? theme.colors.primary + '20'
+                      : activeLevel.phase === 'TROUGH_FOOD_NOISE'
+                        ? theme.colors.warning + '20'
+                        : theme.colors.surfaceMuted,
+                  borderColor:
+                    activeLevel.phase === 'PEAK_CONCENTRATION'
+                      ? theme.colors.primary
+                      : activeLevel.phase === 'TROUGH_FOOD_NOISE'
+                        ? theme.colors.warning
+                        : theme.colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  theme.typography.captionMedium,
+                  {
+                    color:
+                      activeLevel.phase === 'PEAK_CONCENTRATION'
+                        ? theme.colors.primary
+                        : activeLevel.phase === 'TROUGH_FOOD_NOISE'
+                          ? theme.colors.warning
+                          : theme.colors.text,
+                    fontSize: 10,
+                  },
+                ]}
+              >
+                {activeLevel.phase === 'PEAK_CONCENTRATION'
+                  ? '⚡ Peak'
+                  : activeLevel.phase === 'TROUGH_FOOD_NOISE'
+                    ? '🍽️ Appetite window'
+                    : activeLevel.phase === 'NO_DATA'
+                      ? 'No shots'
+                      : '🔄 Steady state'}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 6 }]}>
+            {activeLevel.currentActiveMg > 0
+              ? `${activeLevel.currentActiveMg} mg active in body`
+              : 'Log shot to see active level'}
+          </Text>
+
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4, lineHeight: 18 }]}>
+            {activeLevel.insight}
+          </Text>
+
+          <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 10 }]}>
+            View live curve & titration ›
+          </Text>
+        </Card>
+
         {/* ─── Weekly progress insight ───────────────────────── */}
         <Card
           style={{ marginBottom: theme.spacing.md }}
@@ -717,6 +820,11 @@ export function HomeScreen(): React.ReactElement {
         alerts={smartAlerts}
         onClose={() => setAlertsOpen(false)}
         onAction={onAlertAction}
+      />
+      <ShareableProgressCard
+        visible={shareCardOpen}
+        db={db}
+        onClose={() => setShareCardOpen(false)}
       />
       <SoftReviewPromptSheet
         visible={reviewPromptOpen}
@@ -952,5 +1060,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 12,
+  },
+  phaseBadgeMini: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
 });

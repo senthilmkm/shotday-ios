@@ -1,6 +1,11 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import { MedicationLevelChart } from '../../components/MedicationLevelChart';
+import { generateMedicationCurve } from '../../domain/medicationLevel';
+import type { AppStackParamList } from '../../navigation/AppNavigator';
 import { useTheme } from '../../theme/ThemeProvider';
 import { ZONE_SHORT_LABEL } from './timeline';
 import {
@@ -22,6 +27,8 @@ interface HistoryChartsProps {
   db: ShotdayDb;
 }
 
+type Nav = NativeStackNavigationProp<AppStackParamList>;
+
 const CHART_WIDTH = 320;
 const CHART_HEIGHT = 160;
 const PROTEIN_WINDOW_DAYS = 14;
@@ -29,19 +36,25 @@ const SYMPTOM_RECENT_N = 12;
 const SYMPTOM_AVG_WINDOW_DAYS = 28;
 
 /**
- * Three at-a-glance charts plus a 4-cell stats strip.
+ * Four at-a-glance charts plus a 4-cell stats strip.
  *
  *   Stats:    avg days between shots · avg peak symptom · protein hit-rate · top zone
- *   Chart 1:  Symptom intensity trend (line, peak per check-in, last 12)
- *   Chart 2:  Protein vs target (bars, up to last 14 days, today in-progress)
- *   Chart 3:  Injection sites used (horizontal bars, all-time counts)
- *
- * All math lives in `historyAnalytics.ts` so it's unit-tested and this
- * file stays presentational.
+ *   Chart 1:  Active medication levels (last 30 days + forecast)
+ *   Chart 2:  Symptom intensity trend (line, peak per check-in, last 12)
+ *   Chart 3:  Protein vs target (bars, up to last 14 days, today in-progress)
+ *   Chart 4:  Injection sites used (horizontal bars, all-time counts)
  */
 export function HistoryCharts({ db }: HistoryChartsProps): React.ReactElement {
   const theme = useTheme();
+  const navigation = useNavigation<Nav>();
   const today = useMemo(() => new Date(), []);
+
+  // ─── Medication levels curve (30-day window) ────────────
+  const medPoints = useMemo(() => {
+    const start = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const end = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return generateMedicationCurve(db.injections, db.profile.drug, start, end, 6);
+  }, [db.injections, db.profile.drug, today]);
 
   // ─── Stats strip ────────────────────────────────────────
   const interval = useMemo(() => avgIntervalDays(db), [db]);
@@ -113,7 +126,36 @@ export function HistoryCharts({ db }: HistoryChartsProps): React.ReactElement {
         />
       </View>
 
-      {/* ─── Chart 1: Symptom trend ─────────────────────────── */}
+      {/* ─── Chart 1: Active Medication Levels ───────────── */}
+      <ChartCard
+        title="Active Medication Level (mg)"
+        takeaway="Estimated blood levels over the last 30 days + 7-day forecast."
+        emptyMessage={
+          db.injections.length === 0
+            ? 'Log a shot to see your active medication level curve.'
+            : null
+        }
+        theme={theme}
+      >
+        <MedicationLevelChart
+          points={medPoints}
+          width={CHART_WIDTH}
+          height={CHART_HEIGHT}
+        />
+        <Pressable
+          onPress={() => navigation.navigate('MedicationLevels')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Open medication simulator and titration tools"
+          style={({ pressed }) => [{ marginTop: 10, opacity: pressed ? 0.6 : 1 }]}
+        >
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+            Open titration simulator & weight correlation ›
+          </Text>
+        </Pressable>
+      </ChartCard>
+
+      {/* ─── Chart 2: Symptom trend ─────────────────────────── */}
       <ChartCard
         title="Symptom peak per check-in"
         takeaway={symptomTakeaway}

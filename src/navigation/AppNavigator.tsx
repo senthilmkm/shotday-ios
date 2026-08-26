@@ -8,6 +8,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { DoctorReportScreen } from '../screens/DoctorReport/DoctorReportScreen';
 import { DoseLadderScreen } from '../screens/Dose/DoseLadderScreen';
 import { HistoryScreen } from '../screens/History/HistoryScreen';
+import { MedicationLevelScreen } from '../screens/MedicationLevel/MedicationLevelScreen';
 import { PaywallScreen } from '../screens/Paywall/PaywallScreen';
 import { RefillScreen } from '../screens/Refill/RefillScreen';
 import { WeeklyProgressScreen } from '../screens/WeeklyProgress/WeeklyProgressScreen';
@@ -17,7 +18,7 @@ import { MainTabs, type MainTabsParamList } from './MainTabs';
  * Top-level app stack.
  *
  * `MainTabs` is the root and contains the 5 bottom tabs: Home, Shot, Food,
- * Symptoms, Settings. The remaining screens (DoseLadder, Refill, Paywall)
+ * Symptoms, Settings. The remaining screens (DoseLadder, Refill, Paywall, MedicationLevels)
  * present as bottom-sheet modals over the tab bar — they are infrequent
  * destinations that benefit from staying out of the navigation chrome.
  *
@@ -34,11 +35,25 @@ export type AppStackParamList = {
   DoctorReport: undefined;
   Paywall: undefined;
   History: undefined;
+  MedicationLevels: undefined;
 };
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
+
+function ProtectedMedicationLevelScreen(): React.ReactElement {
+  const navigation = useNavigation<Nav>();
+  return (
+    <ProtectedFeature
+      title="Unlock active blood levels & curves"
+      body="Subscribe to see your estimated GLP-1 blood levels, peak/trough cycle forecast, weight correlation, and 4-week titration simulator."
+      onClose={() => navigation.goBack()}
+    >
+      <MedicationLevelScreen />
+    </ProtectedFeature>
+  );
+}
 
 function ProtectedDoseLadderScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
@@ -107,6 +122,16 @@ export function AppNavigator(): React.ReactElement {
         name="MainTabs"
         component={MainTabs}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="MedicationLevels"
+        component={ProtectedMedicationLevelScreen}
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+          animation: 'slide_from_bottom',
+          gestureEnabled: true,
+        }}
       />
       <Stack.Screen
         name="DoseLadder"

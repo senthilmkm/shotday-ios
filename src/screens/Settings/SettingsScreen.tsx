@@ -100,7 +100,7 @@ export function SettingsScreen(): React.ReactElement {
   const ent = computeEntitlement(profile, new Date());
   const trialDays = trialDaysRemaining(profile, new Date());
   const isDev = Boolean((globalThis as { __DEV__?: boolean }).__DEV__ ?? false);
-  const refill = useMemo(() => refillStatus(profile, db.injections), [profile, db.injections]);
+  const refill = useMemo(() => refillStatus(db.refill, db.injections, new Date()), [db.refill, db.injections]);
 
   const proteinTarget = (() => {
     if (profile.weight <= 0) return 0;
