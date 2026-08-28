@@ -71,7 +71,6 @@ export function CycleConciergeCard({
                 : theme.colors.border,
         },
       ]}
-      accessibilityRole="summary"
       accessibilityLabel={`${concierge.badgeLabel}. ${concierge.headline}. ${concierge.insight}`}
     >
       {/* ─── Top Badge ───────────────────────────────────── */}
