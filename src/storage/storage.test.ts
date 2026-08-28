@@ -68,6 +68,7 @@ describe('loadDb', () => {
     expect(db.injections).toEqual([]);
     expect(db.sideEffects).toEqual([]);
     expect(db.foods).toEqual([]);
+    expect(db.waterEntries).toEqual([]);
     expect(db.weightEntries).toEqual([]);
     expect(db.doseHistory).toEqual([]);
     expect(db.refillHistory).toEqual([]);

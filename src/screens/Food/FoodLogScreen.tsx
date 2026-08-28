@@ -1,6 +1,8 @@
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import type { RouteProp } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -24,21 +26,46 @@ import {
   type FoodPreset,
 } from '../../domain/food';
 import { proteinTargetGrams } from '../../domain/protein';
+import {
+  buildWaterEntry,
+  entriesForDay as waterEntriesForDay,
+  mlToOz,
+  ozToMl,
+  totalWaterForDay,
+  WATER_PRESETS,
+  waterProgress,
+  waterTargetMl,
+  waterTargetOz,
+  type WaterPreset,
+} from '../../domain/water';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
-import type { FoodEntry } from '../../types/domain';
+import type { MainTabsParamList } from '../../navigation/MainTabs';
+import type { FoodEntry, WaterEntry } from '../../types/domain';
+
+type FoodLogRouteProp = RouteProp<MainTabsParamList, 'Food'>;
 
 export function FoodLogScreen(): React.ReactElement {
   const theme = useTheme();
+  const route = useRoute<FoodLogRouteProp>();
   const tabBarHeight = useBottomTabBarHeight();
   const { db, updateDb } = useShotdayDb();
   const now = new Date();
 
-  const [customOpen, setCustomOpen] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customGrams, setCustomGrams] = useState('');
+  const [activeTab, setActiveTab] = useState<'PROTEIN' | 'WATER'>('PROTEIN');
 
-  const target = useMemo(() => {
+  useEffect(() => {
+    if (route.params?.initialTab) {
+      setActiveTab(route.params.initialTab);
+    }
+  }, [route.params?.initialTab]);
+
+  // Protein state & logic
+  const [customProteinOpen, setCustomProteinOpen] = useState(false);
+  const [customProteinName, setCustomProteinName] = useState('');
+  const [customProteinGrams, setCustomProteinGrams] = useState('');
+
+  const proteinTarget = useMemo(() => {
     if (db.profile.weight <= 0) return 0;
     try {
       return proteinTargetGrams(db.profile.weight, db.profile.weightUnit);
@@ -47,35 +74,61 @@ export function FoodLogScreen(): React.ReactElement {
     }
   }, [db.profile.weight, db.profile.weightUnit]);
 
-  const todayEntries = useMemo(() => entriesForDay(db.foods, now), [db.foods, now]);
-  const todayTotal = useMemo(() => totalProteinForDay(db.foods, now), [db.foods, now]);
-  const pct = target > 0 ? Math.min(1, todayTotal / target) : 0;
+  const todayFoodEntries = useMemo(() => entriesForDay(db.foods, now), [db.foods, now]);
+  const todayProteinTotal = useMemo(() => totalProteinForDay(db.foods, now), [db.foods, now]);
+  const proteinPct = proteinTarget > 0 ? Math.min(1, todayProteinTotal / proteinTarget) : 0;
 
-  const onPreset = (preset: FoodPreset): void => {
+  // Water state & logic
+  const [customWaterOpen, setCustomWaterOpen] = useState(false);
+  const [customWaterAmount, setCustomWaterAmount] = useState('');
+  const [customWaterLabel, setCustomWaterLabel] = useState('');
+
+  const isMetric = db.profile.weightUnit === 'KG';
+  const targetWaterOz = useMemo(
+    () => waterTargetOz(db.profile.weight, db.profile.weightUnit),
+    [db.profile.weight, db.profile.weightUnit],
+  );
+  const targetWaterMl = useMemo(
+    () => waterTargetMl(db.profile.weight, db.profile.weightUnit),
+    [db.profile.weight, db.profile.weightUnit],
+  );
+
+  const todayWaterEntries = useMemo(
+    () => waterEntriesForDay(db.waterEntries ?? [], now),
+    [db.waterEntries, now],
+  );
+  const todayWaterTotal = useMemo(
+    () => totalWaterForDay(db.waterEntries ?? [], now),
+    [db.waterEntries, now],
+  );
+  const waterPct = Math.min(1, waterProgress(todayWaterTotal.oz, targetWaterOz));
+
+  // Protein handlers
+  const onProteinPreset = (preset: FoodPreset): void => {
     const entry = buildPresetEntry(preset, new Date());
     updateDb((prev) => ({ ...prev, foods: [entry, ...prev.foods] }));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   };
 
-  const onSaveCustom = (): void => {
-    const grams = parseFloat(customGrams);
+  const onSaveCustomProtein = (): void => {
+    const grams = parseFloat(customProteinGrams);
     if (!Number.isFinite(grams) || grams <= 0) {
       Alert.alert('Enter protein grams', 'A positive number is required.');
       return;
     }
     try {
-      const entry = buildCustomEntry(customName, grams, new Date());
+      const entry = buildCustomEntry(customProteinName, grams, new Date());
       updateDb((prev) => ({ ...prev, foods: [entry, ...prev.foods] }));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setCustomOpen(false);
-      setCustomName('');
-      setCustomGrams('');
+      setCustomProteinOpen(false);
+      setCustomProteinName('');
+      setCustomProteinGrams('');
     } catch {
       Alert.alert('Invalid', 'Enter a positive protein gram count.');
     }
   };
 
-  const removeEntry = (entry: FoodEntry): void => {
+  const removeFoodEntry = (entry: FoodEntry): void => {
     Alert.alert('Remove entry?', `${entry.name} (+${entry.proteinGrams} g)`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -89,170 +142,437 @@ export function FoodLogScreen(): React.ReactElement {
     ]);
   };
 
+  // Water handlers
+  const onWaterPreset = (preset: WaterPreset): void => {
+    const label = isMetric ? `${preset.name} (${preset.amountMl} ml)` : `${preset.name} (${preset.amountOz} oz)`;
+    const entry = buildWaterEntry(preset.amountOz, label, new Date());
+    updateDb((prev) => ({
+      ...prev,
+      waterEntries: [entry, ...(prev.waterEntries ?? [])],
+    }));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  };
+
+  const onSaveCustomWater = (): void => {
+    const rawVal = parseFloat(customWaterAmount);
+    if (!Number.isFinite(rawVal) || rawVal <= 0) {
+      Alert.alert('Enter water amount', 'A positive number is required.');
+      return;
+    }
+    const amountOz = isMetric ? mlToOz(rawVal) : rawVal;
+    try {
+      const displayLabel = customWaterLabel.trim()
+        ? customWaterLabel.trim()
+        : isMetric
+          ? `Custom (${Math.round(rawVal)} ml)`
+          : `Custom (${Math.round(rawVal * 10) / 10} oz)`;
+
+      const entry = buildWaterEntry(amountOz, displayLabel, new Date());
+      updateDb((prev) => ({
+        ...prev,
+        waterEntries: [entry, ...(prev.waterEntries ?? [])],
+      }));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      setCustomWaterOpen(false);
+      setCustomWaterAmount('');
+      setCustomWaterLabel('');
+    } catch {
+      Alert.alert('Invalid', 'Enter a positive water amount.');
+    }
+  };
+
+  const removeWaterEntry = (entry: WaterEntry): void => {
+    const displayAmount = isMetric ? `${ozToMl(entry.amountOz)} ml` : `${entry.amountOz} oz`;
+    Alert.alert('Remove water entry?', `${entry.label ?? 'Water'} (+${displayAmount})`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          updateDb((prev) => ({
+            ...prev,
+            waterEntries: (prev.waterEntries ?? []).filter((w) => w.id !== entry.id),
+          }));
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
       <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: tabBarHeight + theme.spacing.lg }}>
-        <Text style={[theme.typography.title, { color: theme.colors.text }]}>Today's protein</Text>
+        {/* ─── Top Segmented Switcher ─────────────────── */}
+        <View style={[styles.segmentedWrapper, { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radii.lg }]}>
+          <Pressable
+            onPress={() => {
+              setActiveTab('PROTEIN');
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'PROTEIN' }}
+            accessibilityLabel="Protein tracker tab"
+            style={[
+              styles.segmentButton,
+              activeTab === 'PROTEIN' && [
+                styles.segmentButtonActive,
+                { backgroundColor: theme.colors.surface, shadowColor: '#000' },
+              ],
+            ]}
+          >
+            <Text
+              style={[
+                theme.typography.captionMedium,
+                {
+                  color: activeTab === 'PROTEIN' ? theme.colors.text : theme.colors.textMuted,
+                  fontWeight: activeTab === 'PROTEIN' ? '700' : '500',
+                },
+              ]}
+            >
+              🥩 Protein
+            </Text>
+          </Pressable>
 
-        {/* ─── Gauge ───────────────────────────────────── */}
-        {target > 0 ? (
+          <Pressable
+            onPress={() => {
+              setActiveTab('WATER');
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'WATER' }}
+            accessibilityLabel="Water hydration tracker tab"
+            style={[
+              styles.segmentButton,
+              activeTab === 'WATER' && [
+                styles.segmentButtonActive,
+                { backgroundColor: theme.colors.surface, shadowColor: '#000' },
+              ],
+            ]}
+          >
+            <Text
+              style={[
+                theme.typography.captionMedium,
+                {
+                  color: activeTab === 'WATER' ? theme.colors.primary : theme.colors.textMuted,
+                  fontWeight: activeTab === 'WATER' ? '700' : '500',
+                },
+              ]}
+            >
+              💧 Water
+            </Text>
+          </Pressable>
+        </View>
+
+        {activeTab === 'PROTEIN' ? (
           <>
+            {/* ─── Protein Section ───────────────────────────── */}
+            <Text style={[theme.typography.title, { color: theme.colors.text, marginTop: 16 }]}>
+              Today's protein
+            </Text>
+
+            {proteinTarget > 0 ? (
+              <>
+                <View style={[styles.gaugeRow, { marginTop: 16 }]}>
+                  <Text style={[theme.typography.hero, { color: theme.colors.text }]}>{todayProteinTotal}</Text>
+                  <Text
+                    style={[theme.typography.body, { color: theme.colors.textMuted, marginLeft: 6, marginBottom: 6 }]}
+                  >
+                    / {proteinTarget} g
+                  </Text>
+                </View>
+                <View style={[styles.bar, { backgroundColor: theme.colors.surfaceMuted }]}>
+                  <View
+                    style={{
+                      width: `${proteinPct * 100}%`,
+                      height: '100%',
+                      backgroundColor: proteinPct >= 1 ? theme.colors.success : theme.colors.primary,
+                      borderRadius: 4,
+                    }}
+                  />
+                </View>
+                {todayProteinTotal >= proteinTarget && (
+                  <Text
+                    style={[
+                      theme.typography.captionMedium,
+                      { color: theme.colors.success, marginTop: 8 },
+                    ]}
+                  >
+                    Target hit. Muscle stays.
+                  </Text>
+                )}
+              </>
+            ) : (
+              <View
+                style={[
+                  {
+                    backgroundColor: theme.colors.surfaceMuted,
+                    borderRadius: theme.radii.md,
+                    padding: 14,
+                    marginTop: 16,
+                  },
+                ]}
+              >
+                <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
+                  No protein target yet
+                </Text>
+                <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4, lineHeight: 18 }]}>
+                  Add your weight in Settings to compute a daily target. You can still log entries below
+                  — they'll start counting once a target is set.
+                </Text>
+              </View>
+            )}
+
+            {/* ─── Protein Preset Grid ──────────────────────── */}
+            <Text
+              style={[
+                theme.typography.captionMedium,
+                { color: theme.colors.textMuted, marginTop: 28, marginBottom: 12 },
+              ]}
+            >
+              QUICK ADD PROTEIN
+            </Text>
+            <View style={styles.grid}>
+              {FOOD_PRESETS.map((p) => (
+                <PresetTile key={p.id} preset={p} onPress={() => onProteinPreset(p)} />
+              ))}
+              <Pressable
+                onPress={() => setCustomProteinOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Add custom food entry"
+                accessibilityHint="Opens a sheet to enter a name and protein grams"
+                style={({ pressed }) => [
+                  styles.tile,
+                  styles.customTile,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    borderRadius: theme.radii.lg,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Text style={[theme.typography.hero, { color: theme.colors.primary }]}>+</Text>
+                <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                  Custom
+                </Text>
+              </Pressable>
+            </View>
+
+            {/* ─── Today's Food Entries ─────────────────────── */}
+            <Text
+              style={[
+                theme.typography.captionMedium,
+                { color: theme.colors.textMuted, marginTop: 28, marginBottom: 12 },
+              ]}
+            >
+              TODAY ({todayFoodEntries.length})
+            </Text>
+            {todayFoodEntries.length === 0 ? (
+              <Text
+                style={[
+                  theme.typography.caption,
+                  { color: theme.colors.textMuted, fontStyle: 'italic', paddingVertical: 8 },
+                ]}
+              >
+                Nothing logged yet. Tap a tile above.
+              </Text>
+            ) : (
+              todayFoodEntries.map((e) => (
+                <Pressable
+                  key={e.id}
+                  onLongPress={() => removeFoodEntry(e)}
+                  delayLongPress={350}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${e.name}, ${e.proteinGrams} grams of protein, logged at ${timeOf(e.loggedAt)}`}
+                  accessibilityHint="Long press to remove this entry"
+                  style={({ pressed }) => [
+                    styles.entryRow,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                      borderRadius: theme.radii.md,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>{e.name}</Text>
+                    <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                      {timeOf(e.loggedAt)}
+                      {!e.preset && ' · custom'}
+                    </Text>
+                  </View>
+                  <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
+                    +{e.proteinGrams} g
+                  </Text>
+                </Pressable>
+              ))
+            )}
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.colors.textMuted, marginTop: 12, textAlign: 'center' },
+              ]}
+            >
+              Long-press an entry to remove it.
+            </Text>
+          </>
+        ) : (
+          <>
+            {/* ─── Water Section ─────────────────────────────── */}
+            <Text style={[theme.typography.title, { color: theme.colors.text, marginTop: 16 }]}>
+              Today's hydration
+            </Text>
+
+            {/* ─── Water Gauge ──────────────────────────────── */}
             <View style={[styles.gaugeRow, { marginTop: 16 }]}>
-              <Text style={[theme.typography.hero, { color: theme.colors.text }]}>{todayTotal}</Text>
+              <Text style={[theme.typography.hero, { color: theme.colors.text }]}>
+                {isMetric ? todayWaterTotal.ml.toLocaleString() : todayWaterTotal.oz}
+              </Text>
               <Text
                 style={[theme.typography.body, { color: theme.colors.textMuted, marginLeft: 6, marginBottom: 6 }]}
               >
-                / {target} g
+                / {isMetric ? targetWaterMl.toLocaleString() : targetWaterOz} {isMetric ? 'ml' : 'oz'}
               </Text>
             </View>
             <View style={[styles.bar, { backgroundColor: theme.colors.surfaceMuted }]}>
               <View
                 style={{
-                  width: `${pct * 100}%`,
+                  width: `${waterPct * 100}%`,
                   height: '100%',
-                  backgroundColor: pct >= 1 ? theme.colors.success : theme.colors.primary,
+                  backgroundColor: waterPct >= 1 ? theme.colors.success : theme.colors.primary,
                   borderRadius: 4,
                 }}
               />
             </View>
-            {todayTotal >= target && (
-              <Text
-                style={[
-                  theme.typography.captionMedium,
-                  { color: theme.colors.success, marginTop: 8 },
-                ]}
-              >
-                Target hit. Muscle stays.
-              </Text>
-            )}
-          </>
-        ) : (
-          <View
-            style={[
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderRadius: theme.radii.md,
-                padding: 14,
-                marginTop: 16,
-              },
-            ]}
-          >
-            <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
-              No protein target yet
-            </Text>
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4, lineHeight: 18 }]}>
-              Add your weight in Settings to compute a daily target. You can still log entries below
-              — they'll start counting once a target is set.
-            </Text>
-          </View>
-        )}
-
-        {/* ─── Preset grid ─────────────────────────────── */}
-        <Text
-          style={[
-            theme.typography.captionMedium,
-            { color: theme.colors.textMuted, marginTop: 28, marginBottom: 12 },
-          ]}
-        >
-          QUICK ADD
-        </Text>
-        <View style={styles.grid}>
-          {FOOD_PRESETS.map((p) => (
-            <PresetTile key={p.id} preset={p} onPress={() => onPreset(p)} />
-          ))}
-          <Pressable
-            onPress={() => setCustomOpen(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Add custom food entry"
-            accessibilityHint="Opens a sheet to enter a name and protein grams"
-            style={({ pressed }) => [
-              styles.tile,
-              styles.customTile,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-                borderRadius: theme.radii.lg,
-                opacity: pressed ? 0.85 : 1,
-              },
-            ]}
-          >
-            <Text style={[theme.typography.hero, { color: theme.colors.primary }]}>+</Text>
-            <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted, marginTop: 2 }]}>
-              Custom
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* ─── Today's entries ──────────────────────────── */}
-        <Text
-          style={[
-            theme.typography.captionMedium,
-            { color: theme.colors.textMuted, marginTop: 28, marginBottom: 12 },
-          ]}
-        >
-          TODAY ({todayEntries.length})
-        </Text>
-        {todayEntries.length === 0 ? (
-          <Text
-            style={[
-              theme.typography.caption,
-              { color: theme.colors.textMuted, fontStyle: 'italic', paddingVertical: 8 },
-            ]}
-          >
-            Nothing logged yet. Tap a tile above.
-          </Text>
-        ) : (
-          todayEntries.map((e) => (
-            <Pressable
-              key={e.id}
-              onLongPress={() => removeEntry(e)}
-              delayLongPress={350}
-              accessibilityRole="button"
-              accessibilityLabel={`${e.name}, ${e.proteinGrams} grams of protein, logged at ${timeOf(e.loggedAt)}`}
-              accessibilityHint="Long press to remove this entry"
-              style={({ pressed }) => [
-                styles.entryRow,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                  borderRadius: theme.radii.md,
-                  opacity: pressed ? 0.7 : 1,
-                },
+            <Text
+              style={[
+                theme.typography.captionMedium,
+                { color: waterPct >= 1 ? theme.colors.success : theme.colors.textMuted, marginTop: 8 },
               ]}
             >
-              <View style={{ flex: 1 }}>
-                <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>{e.name}</Text>
-                <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
-                  {timeOf(e.loggedAt)}
-                  {!e.preset && ' · custom'}
+              {waterPct >= 1
+                ? 'Target hit. Optimal hydration for GLP-1.'
+                : 'GLP-1 blunts thirst signals. Staying hydrated prevents constipation and headaches.'}
+            </Text>
+
+            {/* ─── Water Preset Grid ────────────────────────── */}
+            <Text
+              style={[
+                theme.typography.captionMedium,
+                { color: theme.colors.textMuted, marginTop: 28, marginBottom: 12 },
+              ]}
+            >
+              QUICK ADD WATER
+            </Text>
+            <View style={styles.grid}>
+              {WATER_PRESETS.map((p) => (
+                <WaterPresetTile
+                  key={p.id}
+                  preset={p}
+                  isMetric={isMetric}
+                  onPress={() => onWaterPreset(p)}
+                />
+              ))}
+              <Pressable
+                onPress={() => setCustomWaterOpen(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Add custom water amount"
+                accessibilityHint="Opens a sheet to enter a custom water amount"
+                style={({ pressed }) => [
+                  styles.tile,
+                  styles.customTile,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                    borderRadius: theme.radii.lg,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Text style={[theme.typography.hero, { color: theme.colors.primary }]}>+</Text>
+                <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                  Custom
                 </Text>
-              </View>
-              <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
-                +{e.proteinGrams} g
+              </Pressable>
+            </View>
+
+            {/* ─── Today's Water Entries ────────────────────── */}
+            <Text
+              style={[
+                theme.typography.captionMedium,
+                { color: theme.colors.textMuted, marginTop: 28, marginBottom: 12 },
+              ]}
+            >
+              TODAY'S LOGS ({todayWaterEntries.length})
+            </Text>
+            {todayWaterEntries.length === 0 ? (
+              <Text
+                style={[
+                  theme.typography.caption,
+                  { color: theme.colors.textMuted, fontStyle: 'italic', paddingVertical: 8 },
+                ]}
+              >
+                No water logged yet today. Tap a container above.
               </Text>
-            </Pressable>
-          ))
+            ) : (
+              todayWaterEntries.map((e) => {
+                const amountDisplay = isMetric ? `${ozToMl(e.amountOz)} ml` : `${e.amountOz} oz`;
+                return (
+                  <Pressable
+                    key={e.id}
+                    onLongPress={() => removeWaterEntry(e)}
+                    delayLongPress={350}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${e.label ?? 'Water'}, ${amountDisplay}, logged at ${timeOf(e.loggedAt)}`}
+                    accessibilityHint="Long press to remove this entry"
+                    style={({ pressed }) => [
+                      styles.entryRow,
+                      {
+                        backgroundColor: theme.colors.surface,
+                        borderColor: theme.colors.border,
+                        borderRadius: theme.radii.md,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
+                        {e.label ?? 'Water'}
+                      </Text>
+                      <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                        {timeOf(e.loggedAt)}
+                      </Text>
+                    </View>
+                    <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
+                      +{amountDisplay}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            )}
+            <Text
+              style={[
+                theme.typography.caption,
+                { color: theme.colors.textMuted, marginTop: 12, textAlign: 'center' },
+              ]}
+            >
+              Long-press an entry to remove it.
+            </Text>
+          </>
         )}
-        <Text
-          style={[
-            theme.typography.caption,
-            { color: theme.colors.textMuted, marginTop: 12, textAlign: 'center' },
-          ]}
-        >
-          Long-press an entry to remove it.
-        </Text>
       </ScrollView>
 
-      {/* ─── Custom entry modal ─────────────────────── */}
+      {/* ─── Custom Protein Modal ─────────────────────── */}
       <Modal
         animationType="slide"
         transparent
-        visible={customOpen}
-        onRequestClose={() => setCustomOpen(false)}
+        visible={customProteinOpen}
+        onRequestClose={() => setCustomProteinOpen(false)}
       >
         <Pressable
           style={styles.modalBackdrop}
-          onPress={() => setCustomOpen(false)}
+          onPress={() => setCustomProteinOpen(false)}
           accessibilityRole="button"
           accessibilityLabel="Dismiss custom entry sheet"
         />
@@ -270,13 +590,13 @@ export function FoodLogScreen(): React.ReactElement {
               },
             ]}
           >
-            <Text style={[theme.typography.heading, { color: theme.colors.text }]}>Custom entry</Text>
+            <Text style={[theme.typography.heading, { color: theme.colors.text }]}>Custom protein entry</Text>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
-              Name + protein grams.
+              Food name + protein grams.
             </Text>
             <TextInput
-              value={customName}
-              onChangeText={setCustomName}
+              value={customProteinName}
+              onChangeText={setCustomProteinName}
               placeholder="e.g. Smoothie"
               placeholderTextColor={theme.colors.textMuted}
               accessibilityLabel="Food name"
@@ -291,8 +611,8 @@ export function FoodLogScreen(): React.ReactElement {
               ]}
             />
             <TextInput
-              value={customGrams}
-              onChangeText={setCustomGrams}
+              value={customProteinGrams}
+              onChangeText={setCustomProteinGrams}
               placeholder="protein grams"
               placeholderTextColor={theme.colors.textMuted}
               keyboardType="decimal-pad"
@@ -307,13 +627,90 @@ export function FoodLogScreen(): React.ReactElement {
                 },
               ]}
             />
-            <Button label="Save" fullWidth size="lg" onPress={onSaveCustom} />
+            <Button label="Save" fullWidth size="lg" onPress={onSaveCustomProtein} />
             <Button
               label="Cancel"
               variant="ghost"
               fullWidth
               haptic={false}
-              onPress={() => setCustomOpen(false)}
+              onPress={() => setCustomProteinOpen(false)}
+              style={{ marginTop: 8 }}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* ─── Custom Water Modal ───────────────────────── */}
+      <Modal
+        animationType="slide"
+        transparent
+        visible={customWaterOpen}
+        onRequestClose={() => setCustomWaterOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setCustomWaterOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss custom water entry sheet"
+        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalAnchor}
+        >
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderTopLeftRadius: theme.radii.xl,
+                borderTopRightRadius: theme.radii.xl,
+              },
+            ]}
+          >
+            <Text style={[theme.typography.heading, { color: theme.colors.text }]}>Custom water entry</Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
+              Enter amount in {isMetric ? 'milliliters (ml)' : 'fluid ounces (oz)'}.
+            </Text>
+            <TextInput
+              value={customWaterAmount}
+              onChangeText={setCustomWaterAmount}
+              placeholder={isMetric ? 'e.g. 350' : 'e.g. 12'}
+              placeholderTextColor={theme.colors.textMuted}
+              keyboardType="decimal-pad"
+              accessibilityLabel="Water amount"
+              style={[
+                styles.modalInput,
+                theme.typography.body,
+                {
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border,
+                  borderRadius: theme.radii.md,
+                },
+              ]}
+            />
+            <TextInput
+              value={customWaterLabel}
+              onChangeText={setCustomWaterLabel}
+              placeholder="Label (optional, e.g. Tea, Tumbler)"
+              placeholderTextColor={theme.colors.textMuted}
+              accessibilityLabel="Optional container label"
+              style={[
+                styles.modalInput,
+                theme.typography.body,
+                {
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border,
+                  borderRadius: theme.radii.md,
+                },
+              ]}
+            />
+            <Button label="Save" fullWidth size="lg" onPress={onSaveCustomWater} />
+            <Button
+              label="Cancel"
+              variant="ghost"
+              fullWidth
+              haptic={false}
+              onPress={() => setCustomWaterOpen(false)}
               style={{ marginTop: 8 }}
             />
           </View>
@@ -358,6 +755,41 @@ function PresetTile({ preset, onPress }: PresetTileProps): React.ReactElement {
   );
 }
 
+interface WaterPresetTileProps {
+  preset: WaterPreset;
+  isMetric: boolean;
+  onPress: () => void;
+}
+
+function WaterPresetTile({ preset, isMetric, onPress }: WaterPresetTileProps): React.ReactElement {
+  const theme = useTheme();
+  const displayAmount = isMetric ? `+${preset.amountMl}ml` : `+${preset.amountOz}oz`;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${preset.name}, ${displayAmount}`}
+      accessibilityHint="Adds this water amount to your daily hydration log"
+      style={({ pressed }) => [
+        styles.tile,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+          borderRadius: theme.radii.lg,
+          opacity: pressed ? 0.85 : 1,
+          transform: [{ scale: pressed ? 0.97 : 1 }],
+        },
+      ]}
+    >
+      <Text style={{ fontSize: 24, marginBottom: 2 }}>{preset.icon}</Text>
+      <Text style={[theme.typography.heading, { color: theme.colors.primary }]}>{displayAmount}</Text>
+      <Text style={[theme.typography.bodyMedium, { color: theme.colors.text, marginTop: 4 }]}>
+        {preset.name}
+      </Text>
+    </Pressable>
+  );
+}
+
 function timeOf(iso: string): string {
   const d = new Date(iso);
   let h = d.getHours();
@@ -370,6 +802,24 @@ function timeOf(iso: string): string {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  segmentedWrapper: {
+    flexDirection: 'row',
+    padding: 4,
+    marginBottom: 8,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  segmentButtonActive: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   gaugeRow: { flexDirection: 'row', alignItems: 'flex-end' },
   bar: {
     height: 10,

@@ -29,7 +29,7 @@ const INCLUDED = [
   'Missed / late shots',
   'Side effects by week',
   'Weight trend',
-  'Protein trend',
+  'Protein & hydration trend',
   'Refill history',
 ];
 

@@ -13,6 +13,7 @@ describe('buildCsv', () => {
     expect(csv).toContain('## Injections');
     expect(csv).toContain('## Side-effect check-ins');
     expect(csv).toContain('## Food / protein log');
+    expect(csv).toContain('## Water / hydration log');
     expect(csv).toContain('## Weight history');
     expect(csv).toContain('## Dose history');
     expect(csv).toContain('## Refill history');
@@ -98,6 +99,22 @@ describe('buildCsv', () => {
     );
     expect(csv).toContain('2026-06-01,08:00,210,LB,doctor office,w1');
     expect(csv).toContain('2026-06-02,10:00,PICKED_UP,4,2026-06-02T10:00:00,,r1');
+  });
+
+  it('exports water log in CSV format', () => {
+    const csv = buildCsv(
+      db({
+        waterEntries: [
+          {
+            id: 'wat-1',
+            loggedAt: '2026-06-01T10:30:00',
+            amountOz: 16,
+            label: 'Bottle',
+          },
+        ],
+      }),
+    );
+    expect(csv).toContain('2026-06-01,10:30,16,Bottle,wat-1');
   });
 });
 

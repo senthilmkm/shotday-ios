@@ -21,6 +21,15 @@ import {
   totalProteinForDay,
 } from '../domain/food';
 import {
+  buildWaterEntry,
+  entriesForDay as waterEntriesForDay,
+  totalWaterForDay,
+  WATER_PRESETS,
+  waterProgress,
+  waterTargetMl,
+  waterTargetOz,
+} from '../domain/water';
+import {
   dayAfterShot,
   daysSinceLastShot,
   daysUntilNext,
@@ -1118,6 +1127,58 @@ describe('User Journey: Active GLP-1 Levels, Half-Life Curve & Titration Simulat
     const sim = simulateTitration(reloaded.injections, 'ZEPBOUND', 5.0, 7.5, 4, week4Now);
     expect(sim.steadyStateTitrationMg).toBeGreaterThan(sim.steadyStateCurrentMg);
     expect(sim.titrationCurve.length).toBeGreaterThan(0);
+  });
+
+  it('Scenario 17: User logs water throughout the day, monitors progress toward target, and persists across sessions', async () => {
+    const store = createMemoryStore();
+    let db = applyOnboarding(freshDb(), { weight: 180, weightUnit: 'LB' });
+
+    // Target for 180 lb should be 90 oz (0.5 oz / lb)
+    const targetOz = waterTargetOz(db.profile.weight, db.profile.weightUnit);
+    expect(targetOz).toBe(90);
+
+    const morning = new Date('2026-08-28T08:30:00Z');
+    const afternoon = new Date('2026-08-28T13:00:00Z');
+    const evening = new Date('2026-08-28T19:30:00Z');
+
+    // 1. Morning glass (8 oz)
+    const glassPreset = WATER_PRESETS.find((p) => p.id === 'glass')!;
+    const entry1 = buildWaterEntry(glassPreset.amountOz, `${glassPreset.name} (8 oz)`, morning);
+    db = { ...db, waterEntries: [entry1, ...(db.waterEntries ?? [])] };
+
+    // 2. Afternoon bottle (16 oz) + custom electrolyte tumbler (24 oz)
+    const entry2 = buildWaterEntry(16, 'Bottle (16 oz)', afternoon);
+    const entry3 = buildWaterEntry(24, 'Electrolyte drink', afternoon);
+    db = { ...db, waterEntries: [entry3, entry2, ...(db.waterEntries ?? [])] };
+
+    // 3. Evening flask (32 oz)
+    const entry4 = buildWaterEntry(32, 'Flask (32 oz)', evening);
+    db = { ...db, waterEntries: [entry4, ...(db.waterEntries ?? [])] };
+
+    // Save and reload
+    await saveDb(store, db);
+    const loaded = await loadDb(store);
+
+    expect(loaded.waterEntries).toHaveLength(4);
+
+    // Calculate daily total: 8 + 16 + 24 + 32 = 80 oz
+    const todayTotal = totalWaterForDay(loaded.waterEntries, new Date('2026-08-28T12:00:00Z'));
+    expect(todayTotal.oz).toBe(80);
+    expect(todayTotal.ml).toBeGreaterThan(2000);
+
+    // Progress towards 90 oz target
+    const progress = waterProgress(todayTotal.oz, targetOz);
+    expect(progress).toBeCloseTo(80 / 90, 2);
+
+    // Remove one entry (e.g. user logged mistake)
+    const updatedEntries = loaded.waterEntries.filter((w) => w.id !== entry1.id);
+    db = { ...loaded, waterEntries: updatedEntries };
+    await saveDb(store, db);
+
+    const reloaded2 = await loadDb(store);
+    expect(reloaded2.waterEntries).toHaveLength(3);
+    const finalTotal = totalWaterForDay(reloaded2.waterEntries, new Date('2026-08-28T12:00:00Z'));
+    expect(finalTotal.oz).toBe(72);
   });
 });
 

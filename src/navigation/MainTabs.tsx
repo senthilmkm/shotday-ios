@@ -13,7 +13,7 @@ import { useTheme } from '../theme/ThemeProvider';
 export type MainTabsParamList = {
   Home: undefined;
   Shot: undefined;
-  Food: undefined;
+  Food: { initialTab?: 'PROTEIN' | 'WATER' } | undefined;
   Symptoms: undefined;
   Settings: undefined;
 };
@@ -34,8 +34,8 @@ function ProtectedShotTab(): React.ReactElement {
 function ProtectedFoodTab(): React.ReactElement {
   return (
     <ProtectedFeature
-      title="Keep tracking protein with Pro"
-      body="Subscribe to keep protein logging connected to weekly progress, doctor reports, and smart coach reminders."
+      title="Keep tracking protein & water with Pro"
+      body="Subscribe to keep protein and hydration logging connected to weekly progress, doctor reports, and smart coach reminders."
     >
       <FoodLogScreen />
     </ProtectedFeature>

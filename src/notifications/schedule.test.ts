@@ -38,6 +38,7 @@ const dbOf = (
   injections,
   sideEffects: [],
   foods: [],
+  waterEntries: [],
   weightEntries: [],
   doseHistory: [],
   refill,

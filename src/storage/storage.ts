@@ -112,6 +112,7 @@ function migrate(db: ShotdayDb): ShotdayDb {
     injections: Array.isArray(db.injections) ? db.injections : [],
     sideEffects: Array.isArray(db.sideEffects) ? db.sideEffects : [],
     foods: Array.isArray(db.foods) ? db.foods : [],
+    waterEntries: Array.isArray(db.waterEntries) ? db.waterEntries : [],
     weightEntries,
     doseHistory: Array.isArray(db.doseHistory) ? db.doseHistory : [],
     refill,

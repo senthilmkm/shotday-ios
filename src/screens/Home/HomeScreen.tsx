@@ -54,6 +54,12 @@ import {
 import { buildTodaysCoach, type CoachAction } from '../../domain/todaysCoach';
 import { weightMilestoneSummary } from '../../domain/weight';
 import { summarizeWeeklyProgress } from '../../domain/weeklyProgress';
+import {
+  totalWaterForDay,
+  waterProgress,
+  waterTargetMl,
+  waterTargetOz,
+} from '../../domain/water';
 import { useProAccess } from '../../hooks/useProAccess';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -167,8 +173,8 @@ export function HomeScreen(): React.ReactElement {
     if (requireProAccess()) navigation.navigate('Symptoms');
   };
 
-  const openFoodLog = (): void => {
-    if (requireProAccess()) navigation.navigate('Food');
+  const openFoodLog = (initialTab: 'PROTEIN' | 'WATER' = 'PROTEIN'): void => {
+    if (requireProAccess()) navigation.navigate('Food', { initialTab });
   };
 
   const openRefill = (): void => {
@@ -262,6 +268,22 @@ export function HomeScreen(): React.ReactElement {
     [db.foods, today],
   );
   const proteinPct = proteinProgress(proteinTodayG, proteinTarget);
+
+  // Water / Hydration
+  const isMetric = db.profile.weightUnit === 'KG';
+  const targetWaterOz = useMemo(
+    () => waterTargetOz(db.profile.weight, db.profile.weightUnit),
+    [db.profile.weight, db.profile.weightUnit],
+  );
+  const targetWaterMl = useMemo(
+    () => waterTargetMl(db.profile.weight, db.profile.weightUnit),
+    [db.profile.weight, db.profile.weightUnit],
+  );
+  const waterToday = useMemo(
+    () => totalWaterForDay(db.waterEntries ?? [], today),
+    [db.waterEntries, today],
+  );
+  const waterPct = waterProgress(waterToday.oz, targetWaterOz);
 
   // Dose ladder mini
   const upcomingRung = nextRung(db.profile.drug, db.profile.currentDoseMg);
@@ -703,50 +725,93 @@ export function HomeScreen(): React.ReactElement {
         </Card>
 
 
-        {/* ─── Protein gauge ──────────────────────────────────── */}
+        {/* ─── Nutrition & Hydration Gauges ──────────────────── */}
         <Card
           style={{ marginBottom: theme.spacing.md }}
-          onPress={() => {
-            if (proteinTarget > 0) openFoodLog();
-            else openWeightSheet();
-          }}
-          accessibilityLabel={
-            proteinTarget > 0
-              ? `Protein today: ${Math.round(proteinTodayG)} of ${proteinTarget} grams. Tap to log.`
-              : 'Protein log. No target set yet. Tap to add weight and compute one.'
-          }
+          onPress={() => openFoodLog('PROTEIN')}
+          accessibilityLabel={`Daily fuel and hydration. Protein: ${Math.round(proteinTodayG)} of ${proteinTarget} grams. Water: ${isMetric ? waterToday.ml.toLocaleString() : waterToday.oz} of ${isMetric ? targetWaterMl.toLocaleString() : targetWaterOz} ${isMetric ? 'ml' : 'oz'}. Tap to log.`}
+          accessibilityHint="Opens daily nutrition and hydration logger"
         >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[theme.typography.captionMedium, { color: theme.colors.textMuted }]}>
-              PROTEIN TODAY
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+              DAILY FUEL & HYDRATION
             </Text>
-            {proteinTarget > 0 && (
-              <Text style={[theme.typography.captionMedium, { color: theme.colors.text }]}>
-                {Math.round(proteinTodayG)} / {proteinTarget} g
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
+              Tap to log ›
+            </Text>
+          </View>
+
+          {/* Protein Row */}
+          <Pressable
+            onPress={() => {
+              if (proteinTarget > 0) openFoodLog('PROTEIN');
+              else openWeightSheet();
+            }}
+            style={{ marginBottom: 14 }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              proteinTarget > 0
+                ? `Protein today: ${Math.round(proteinTodayG)} of ${proteinTarget} grams.`
+                : 'Protein log. No target set yet. Tap to set weight.'
+            }
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
+                🥩 Protein
+              </Text>
+              {proteinTarget > 0 ? (
+                <Text style={[theme.typography.captionMedium, { color: theme.colors.text }]}>
+                  {Math.round(proteinTodayG)} / {proteinTarget} g
+                </Text>
+              ) : (
+                <Text style={[theme.typography.caption, { color: theme.colors.primary }]}>
+                  Set target ›
+                </Text>
+              )}
+            </View>
+            {proteinTarget > 0 ? (
+              <View style={[styles.gaugeBar, { backgroundColor: theme.colors.surfaceMuted, marginTop: 6 }]}>
+                <View
+                  style={{
+                    width: `${Math.min(100, proteinPct * 100)}%`,
+                    height: '100%',
+                    backgroundColor: proteinPct >= 1 ? theme.colors.success : theme.colors.primary,
+                    borderRadius: 4,
+                  }}
+                />
+              </View>
+            ) : (
+              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
+                Add weight in Settings to calculate daily target.
               </Text>
             )}
-          </View>
-          {proteinTarget > 0 ? (
-            <View style={[styles.gaugeBar, { backgroundColor: theme.colors.surfaceMuted, marginTop: 10, marginBottom: 2 }]}>
+          </Pressable>
+
+          {/* Water Row */}
+          <Pressable
+            onPress={() => openFoodLog('WATER')}
+            accessibilityRole="button"
+            accessibilityLabel={`Water today: ${isMetric ? waterToday.ml.toLocaleString() : waterToday.oz} of ${isMetric ? targetWaterMl.toLocaleString() : targetWaterOz} ${isMetric ? 'ml' : 'oz'}.`}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
+                💧 Water
+              </Text>
+              <Text style={[theme.typography.captionMedium, { color: theme.colors.text }]}>
+                {isMetric ? waterToday.ml.toLocaleString() : waterToday.oz} / {isMetric ? targetWaterMl.toLocaleString() : targetWaterOz} {isMetric ? 'ml' : 'oz'}
+              </Text>
+            </View>
+            <View style={[styles.gaugeBar, { backgroundColor: theme.colors.surfaceMuted, marginTop: 6 }]}>
               <View
                 style={{
-                  width: `${Math.min(100, proteinPct * 100)}%`,
+                  width: `${Math.min(100, waterPct * 100)}%`,
                   height: '100%',
-                  backgroundColor: proteinPct >= 1 ? theme.colors.success : theme.colors.primary,
+                  backgroundColor: waterPct >= 1 ? theme.colors.success : theme.colors.primary,
                   borderRadius: 4,
                 }}
               />
             </View>
-          ) : (
-            <View style={{ marginTop: 6 }}>
-              <Text style={[theme.typography.bodyMedium, { color: theme.colors.text }]}>
-                Set daily protein target
-              </Text>
-              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
-                Tap to add weight and calculate daily target.
-              </Text>
-            </View>
-          )}
+          </Pressable>
         </Card>
 
         {/* ─── History & charts shortcut ───────────────────────── */}

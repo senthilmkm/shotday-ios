@@ -121,6 +121,20 @@ export interface FoodEntry {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Water / hydration log
+// ────────────────────────────────────────────────────────────────────
+
+export interface WaterEntry {
+  id: string;
+  /** ISO-8601 timestamp. */
+  loggedAt: string;
+  /** Amount in fluid ounces. Standard normalized unit stored in DB. */
+  amountOz: number;
+  /** Display label, e.g. "Glass (8 oz)", "Bottle (16 oz)", "Custom". */
+  label?: string;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Weight history
 // ────────────────────────────────────────────────────────────────────
 
@@ -299,6 +313,7 @@ export interface ShotdayDb {
   injections: Injection[];
   sideEffects: SideEffectEntry[];
   foods: FoodEntry[];
+  waterEntries: WaterEntry[];
   weightEntries: WeightEntry[];
   doseHistory: DoseHistoryEntry[];
   refill: RefillSchedule | null;
@@ -336,6 +351,7 @@ export const EMPTY_DB: ShotdayDb = {
   injections: [],
   sideEffects: [],
   foods: [],
+  waterEntries: [],
   weightEntries: [],
   doseHistory: [],
   refill: null,

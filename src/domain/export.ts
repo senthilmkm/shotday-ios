@@ -21,6 +21,7 @@ import type {
   RefillHistoryEntry,
   ShotdayDb,
   SideEffectEntry,
+  WaterEntry,
   WeightEntry,
 } from '../types/domain';
 
@@ -100,6 +101,22 @@ export function buildCsv(db: ShotdayDb): string {
         csvField(String(f.proteinGrams)),
         csvField(String(f.preset)),
         csvField(f.id),
+      ].join(','),
+    );
+  }
+
+  out.push('');
+  out.push('## Water / hydration log');
+  out.push(['date', 'time', 'amount_oz', 'label', 'id'].join(','));
+  for (const w of [...(db.waterEntries ?? [])].sort(byDateAsc((x) => x.loggedAt))) {
+    const d = new Date(w.loggedAt);
+    out.push(
+      [
+        csvField(localDate(d)),
+        csvField(localTime(d)),
+        csvField(String(w.amountOz)),
+        csvField(w.label ?? ''),
+        csvField(w.id),
       ].join(','),
     );
   }
@@ -205,4 +222,4 @@ function byDateAsc<T>(getter: (t: T) => string): (a: T, b: T) => number {
 }
 
 // Re-exports satisfy isolated module tests.
-export type { DoseHistoryEntry, FoodEntry, Injection, RefillHistoryEntry, WeightEntry };
+export type { DoseHistoryEntry, FoodEntry, Injection, RefillHistoryEntry, WaterEntry, WeightEntry };
