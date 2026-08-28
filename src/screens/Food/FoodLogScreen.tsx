@@ -200,9 +200,15 @@ export function FoodLogScreen(): React.ReactElement {
   };
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: tabBarHeight + theme.spacing.lg }}>
-        {/* ─── Top Segmented Switcher ─────────────────── */}
+        {/* ─── Screen Title Header ────────────────────── */}
+        <Text style={[theme.typography.title, { color: theme.colors.text }]}>Daily Fuel</Text>
+        <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4, marginBottom: 16 }]}>
+          Track daily protein & hydration to support GLP-1 wellness.
+        </Text>
+
+        {/* ─── Segmented Switcher (Comfortable Position) ── */}
         <View style={[styles.segmentedWrapper, { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radii.lg }]}>
           <Pressable
             onPress={() => {
@@ -266,13 +272,13 @@ export function FoodLogScreen(): React.ReactElement {
         {activeTab === 'PROTEIN' ? (
           <>
             {/* ─── Protein Section ───────────────────────────── */}
-            <Text style={[theme.typography.title, { color: theme.colors.text, marginTop: 16 }]}>
+            <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 18 }]}>
               Today's protein
             </Text>
 
             {proteinTarget > 0 ? (
               <>
-                <View style={[styles.gaugeRow, { marginTop: 16 }]}>
+                <View style={[styles.gaugeRow, { marginTop: 12 }]}>
                   <Text style={[theme.typography.hero, { color: theme.colors.text }]}>{todayProteinTotal}</Text>
                   <Text
                     style={[theme.typography.body, { color: theme.colors.textMuted, marginLeft: 6, marginBottom: 6 }]}
@@ -308,7 +314,7 @@ export function FoodLogScreen(): React.ReactElement {
                     backgroundColor: theme.colors.surfaceMuted,
                     borderRadius: theme.radii.md,
                     padding: 14,
-                    marginTop: 16,
+                    marginTop: 12,
                   },
                 ]}
               >
@@ -420,12 +426,12 @@ export function FoodLogScreen(): React.ReactElement {
         ) : (
           <>
             {/* ─── Water Section ─────────────────────────────── */}
-            <Text style={[theme.typography.title, { color: theme.colors.text, marginTop: 16 }]}>
+            <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 18 }]}>
               Today's hydration
             </Text>
 
             {/* ─── Water Gauge ──────────────────────────────── */}
-            <View style={[styles.gaugeRow, { marginTop: 16 }]}>
+            <View style={[styles.gaugeRow, { marginTop: 12 }]}>
               <Text style={[theme.typography.hero, { color: theme.colors.text }]}>
                 {isMetric ? todayWaterTotal.ml.toLocaleString() : todayWaterTotal.oz}
               </Text>
