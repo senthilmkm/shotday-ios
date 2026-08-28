@@ -1223,5 +1223,46 @@ describe('User Journey: Active GLP-1 Levels, Half-Life Curve & Titration Simulat
     expect(concierge.phase).toBe('TROUGH_APPETITE');
     expect(concierge.insight).toContain('food noise is 100% normal');
   });
+
+  it('scenario 19: 1-tap feeling great fast-log and compounded syringe unit doses', async () => {
+    let db = applyOnboarding(freshDb(), {
+      drug: 'OTHER',
+      customDrugName: 'Compounded Semaglutide',
+      currentDoseMg: 0.25,
+      currentDoseLabel: '25 units',
+    });
+
+    // 1. Log shot with compounded label
+    const shotTime = new Date('2026-08-23T09:00:00Z');
+    db = logInjection(db, 'BELLY_UL', shotTime);
+    expect(db.injections[0]?.doseMg).toBe(0.25);
+
+    // 2. User moves to 35 units (0.35 mg)
+    db = {
+      ...db,
+      profile: { ...db.profile, currentDoseMg: 0.35, currentDoseLabel: '35 units' },
+      doseHistory: [
+        ...db.doseHistory,
+        { id: 'dose-compounded', startedAt: new Date().toISOString(), label: '35 units', mg: 0.35 },
+      ],
+    };
+    expect(db.profile.currentDoseLabel).toBe('35 units');
+
+    // 3. User feels great on Day 4 and fast-logs all zero symptoms
+    const day4 = new Date('2026-08-27T12:00:00Z');
+    const zeroEntry = buildPostShotEntry({
+      metrics: defaultMetrics(),
+      chips: [],
+      customSymptoms: [],
+      injections: db.injections,
+      now: day4,
+    });
+    expect(zeroEntry).not.toBeNull();
+    expect(zeroEntry?.metrics.NAUSEA).toBe(1);
+    expect(zeroEntry?.metrics.FATIGUE).toBe(1);
+    expect(zeroEntry?.chips).toEqual([]);
+    db = { ...db, sideEffects: [zeroEntry!, ...db.sideEffects] };
+    expect(db.sideEffects).toHaveLength(1);
+  });
 });
 

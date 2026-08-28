@@ -100,6 +100,28 @@ export function HistoryCharts({ db }: HistoryChartsProps): React.ReactElement {
 
   return (
     <View>
+      {db.injections.length === 0 && (
+        <View
+          style={[
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.primary + '40',
+              borderWidth: 1,
+              borderRadius: theme.radii.lg,
+              padding: 16,
+              marginTop: 16,
+            },
+          ]}
+        >
+          <Text style={[theme.typography.bodyMedium, { color: theme.colors.text, fontWeight: '700' }]}>
+            📊 Charts Preview Active
+          </Text>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4, lineHeight: 18 }]}>
+            Your 30-day active blood concentration, symptom trends, and protein consistency charts will automatically plot here as you log your weekly shots.
+          </Text>
+        </View>
+      )}
+
       {/* ─── Stats strip ──────────────────────────────────────── */}
       <View
         style={[

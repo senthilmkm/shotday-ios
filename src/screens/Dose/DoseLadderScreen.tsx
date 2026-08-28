@@ -55,6 +55,7 @@ export function DoseLadderScreen(): React.ReactElement {
   const eligible = daysToBump === 0;
 
   const [customOpen, setCustomOpen] = useState(false);
+  const [customUnit, setCustomUnit] = useState<'MG' | 'UNITS'>('MG');
   const [customMg, setCustomMg] = useState('');
 
   const bumpTo = (rung: DoseRung): void => {
@@ -100,12 +101,14 @@ export function DoseLadderScreen(): React.ReactElement {
   };
 
   const onSaveCustom = (): void => {
-    const mg = parseFloat(customMg);
-    if (!Number.isFinite(mg) || mg <= 0) {
-      Alert.alert('Invalid', 'Enter a positive number of milligrams.');
+    const val = parseFloat(customMg);
+    if (!Number.isFinite(val) || val <= 0) {
+      Alert.alert('Invalid', `Enter a positive number of ${customUnit === 'MG' ? 'milligrams' : 'units'}.`);
       return;
     }
-    commit(`${mg} mg`, mg);
+    const label = customUnit === 'MG' ? `${val} mg` : `${Math.round(val)} units`;
+    const mg = customUnit === 'MG' ? val : val / 100;
+    commit(label, mg);
     setCustomMg('');
     setCustomOpen(false);
   };
@@ -371,15 +374,48 @@ export function DoseLadderScreen(): React.ReactElement {
           >
             <Text style={[theme.typography.heading, { color: theme.colors.text }]}>Custom dose</Text>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
-              Use this for off-ladder or compounded doses.
+              Use this for off-ladder, micro-doses, or compounded insulin syringe units.
             </Text>
+
+            {/* Unit Switcher */}
+            <View style={[styles.segmentedWrapper, { backgroundColor: theme.colors.surfaceMuted, borderRadius: theme.radii.md, marginTop: 14 }]}>
+              <Pressable
+                onPress={() => {
+                  setCustomUnit('MG');
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }}
+                style={[
+                  styles.segmentButton,
+                  customUnit === 'MG' && [{ backgroundColor: theme.colors.surface, shadowColor: '#000' }, styles.segmentButtonActive],
+                ]}
+              >
+                <Text style={[theme.typography.captionMedium, { color: customUnit === 'MG' ? theme.colors.text : theme.colors.textMuted, fontWeight: customUnit === 'MG' ? '700' : '500' }]}>
+                  Milligrams (mg)
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setCustomUnit('UNITS');
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                }}
+                style={[
+                  styles.segmentButton,
+                  customUnit === 'UNITS' && [{ backgroundColor: theme.colors.surface, shadowColor: '#000' }, styles.segmentButtonActive],
+                ]}
+              >
+                <Text style={[theme.typography.captionMedium, { color: customUnit === 'UNITS' ? theme.colors.primary : theme.colors.textMuted, fontWeight: customUnit === 'UNITS' ? '700' : '500' }]}>
+                  Syringe Units
+                </Text>
+              </Pressable>
+            </View>
+
             <TextInput
               value={customMg}
               onChangeText={setCustomMg}
-              placeholder="e.g. 0.7"
+              placeholder={customUnit === 'MG' ? 'e.g. 0.35' : 'e.g. 25'}
               placeholderTextColor={theme.colors.textMuted}
               keyboardType="decimal-pad"
-              accessibilityLabel="Custom dose in milligrams"
+              accessibilityLabel={customUnit === 'MG' ? 'Custom dose in milligrams' : 'Custom dose in syringe units'}
               style={[
                 styles.modalInput,
                 theme.typography.body,
@@ -390,8 +426,8 @@ export function DoseLadderScreen(): React.ReactElement {
                 },
               ]}
             />
-            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6 }]}>
-              milligrams (mg)
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, textAlign: 'center' }]}>
+              {customUnit === 'MG' ? 'milligrams (mg)' : 'insulin syringe units (e.g. U-100 mark)'}
             </Text>
             <Button label="Save" fullWidth size="lg" onPress={onSaveCustom} style={{ marginTop: 16 }} />
             <Button
@@ -461,5 +497,22 @@ const styles = StyleSheet.create({
     marginTop: 16,
     minHeight: 48,
     textAlign: 'center',
+  },
+  segmentedWrapper: {
+    flexDirection: 'row',
+    padding: 3,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+  },
+  segmentButtonActive: {
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
 });

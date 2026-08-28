@@ -31,6 +31,7 @@ export function ShareableProgressCard({
 }: ShareableProgressCardProps): React.ReactElement {
   const theme = useTheme();
   const today = new Date();
+  const [hideAbsoluteWeight, setHideAbsoluteWeight] = React.useState(true);
 
   const activeLevel = summarizeActiveLevel(db.injections, db.profile.drug, today);
   const milestone = weightMilestoneSummary(db, today);
@@ -97,9 +98,33 @@ export function ShareableProgressCard({
         </View>
 
         <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, alignItems: 'center' }}>
-          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, textAlign: 'center', marginBottom: 16 }]}>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, textAlign: 'center', marginBottom: 12 }]}>
             Screenshot this card or share your milestones to Reddit (r/Zepbound, r/semaglutide) and social channels. No private personal info is included.
           </Text>
+
+          {/* Privacy Toggle */}
+          <Pressable
+            onPress={() => {
+              setHideAbsoluteWeight((prev) => !prev);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: hideAbsoluteWeight }}
+            accessibilityLabel="Toggle privacy mode"
+            style={({ pressed }) => [
+              styles.privacyToggle,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+                borderRadius: theme.radii.lg,
+                opacity: pressed ? 0.8 : 1,
+              },
+            ]}
+          >
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.text, fontSize: 11 }]}>
+              {hideAbsoluteWeight ? '🔒 Privacy: Showing Only Total Lost' : '⚖️ Showing Total Lost + Weight'}
+            </Text>
+          </Pressable>
 
           {/* ─── Anonymized Social Card ─────────────────────────── */}
           <View
@@ -257,5 +282,11 @@ const styles = StyleSheet.create({
   cardFooter: {
     alignItems: 'center',
     marginTop: 16,
+  },
+  privacyToggle: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    marginBottom: 16,
   },
 });

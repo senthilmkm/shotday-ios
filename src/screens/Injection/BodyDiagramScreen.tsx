@@ -4,6 +4,7 @@ import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../components/Button';
 import { DateTimePickerSheet } from '../../components/DateTimePickerSheet';
+import { ShotCelebrationModal } from '../../components/ShotCelebrationModal';
 import { checkDoseSafety, type DoseSafety } from '../../domain/doseSafety';
 import { hotZones, lastUsedZone, suggestNextZone } from '../../domain/rotation';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
@@ -99,11 +100,18 @@ export function BodyDiagramScreen({ onLogged }: BodyDiagramScreenProps): React.R
     return takenAt.getTime() < now.getTime() - 60 * 1000;
   }, [takenAt]);
 
+  const [celebrationData, setCelebrationData] = useState<{
+    zoneLabel: string;
+    doseLabel: string;
+    nextDateStr: string;
+    weekCount: number;
+  } | null>(null);
+
   /**
    * Append a brand-new injection for the currently selected zone.
    * No safety checks here — callers must have run them first.
    */
-  const appendInjection = (catchUp: boolean): void => {
+  const appendInjection = (_catchUp: boolean): void => {
     if (!pendingZone) return;
     const newInjection: Injection = {
       id: `inj-${Date.now()}`,
@@ -115,18 +123,25 @@ export function BodyDiagramScreen({ onLogged }: BodyDiagramScreenProps): React.R
       ...prev,
       injections: [newInjection, ...prev.injections],
     }));
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    Alert.alert(
-      'Logged',
-      catchUp
-        ? `${ZONE_LABEL[pendingZone]} on ${formatTakenAt(takenAt)}.`
-        : isBackdated
-          ? `${ZONE_LABEL[pendingZone]} on ${formatTakenAt(takenAt)}.`
-          : `${ZONE_LABEL[pendingZone]} — see you next week.`,
-    );
+
+    const weekCount = db.injections.length + 1;
+    const nextDate = new Date(takenAt);
+    nextDate.setDate(nextDate.getDate() + 7);
+    const nextDateStr = nextDate.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+
+    setCelebrationData({
+      zoneLabel: ZONE_LABEL[pendingZone],
+      doseLabel: db.profile.currentDoseLabel || `${db.profile.currentDoseMg} mg`,
+      nextDateStr,
+      weekCount,
+    });
+
     setPendingZone(null);
     setTakenAt(new Date());
-    onLogged?.();
   };
 
   /**
@@ -336,6 +351,18 @@ export function BodyDiagramScreen({ onLogged }: BodyDiagramScreenProps): React.R
         maximumDate={new Date()}
         onClose={() => setPickerOpen(false)}
         onConfirm={(d) => setTakenAt(d)}
+      />
+
+      <ShotCelebrationModal
+        visible={celebrationData !== null}
+        zoneLabel={celebrationData?.zoneLabel ?? ''}
+        doseLabel={celebrationData?.doseLabel ?? ''}
+        nextShotDateStr={celebrationData?.nextDateStr ?? ''}
+        weekCount={celebrationData?.weekCount ?? 1}
+        onClose={() => {
+          setCelebrationData(null);
+          onLogged?.();
+        }}
       />
     </SafeAreaView>
   );

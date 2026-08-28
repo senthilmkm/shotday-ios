@@ -117,6 +117,33 @@ export function SideEffectLogScreen(): React.ReactElement {
     navigation.navigate('Home');
   };
 
+  const onFeelingGreat = (): void => {
+    const fresh = new Date();
+    const realDay = dayAfterShotClamped(db.injections, fresh);
+    const zeroMetrics = defaultMetrics();
+    const entry = inWindow
+      ? buildPostShotEntry({
+          metrics: zeroMetrics,
+          chips: [],
+          customSymptoms: [],
+          injections: db.injections,
+          now: fresh,
+        })
+      : buildAdHocEntry({
+          metrics: zeroMetrics,
+          chips: [],
+          customSymptoms: [],
+          doseMg: last?.doseMg ?? db.profile.currentDoseMg,
+          dayAfterShot: realDay ?? 1,
+          now: fresh,
+        });
+    if (!entry) return;
+    updateDb((prev) => ({ ...prev, sideEffects: [entry, ...prev.sideEffects] }));
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    Alert.alert('Logged: Feeling Great! ✨', 'Zero symptoms recorded to your timeline.');
+    navigation.navigate('Home');
+  };
+
   // The "in window" subtitle reads naturally for days 1–7. For the
   // "out of window" case we only fall through when a logged shot
   // exists but is more than a week old — at that point the entry is
@@ -129,14 +156,52 @@ export function SideEffectLogScreen(): React.ReactElement {
       : 'No injection logged yet — saving as an ad-hoc check-in.';
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: tabBarHeight + theme.spacing.lg }}>
         <Text style={[theme.typography.title, { color: theme.colors.text }]}>How are you feeling?</Text>
         <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 4 }]}>
           {subtitle}
         </Text>
 
+        {/* ─── 1-Tap "Feeling Great" Fast Action ────────── */}
+        <Pressable
+          onPress={onFeelingGreat}
+          accessibilityRole="button"
+          accessibilityLabel="Feeling great today, all clear. Fast-logs zero symptoms."
+          style={({ pressed }) => [
+            styles.feelingGreatButton,
+            {
+              backgroundColor: theme.colors.success + '15',
+              borderColor: theme.colors.success + '40',
+              borderRadius: theme.radii.lg,
+              opacity: pressed ? 0.8 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            },
+          ]}
+        >
+          <Text style={{ fontSize: 20 }}>✨</Text>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={[theme.typography.bodyMedium, { color: theme.colors.success, fontWeight: '700' }]}>
+              Feeling Great Today (All Clear)
+            </Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
+              1-tap to log 0 symptoms for today.
+            </Text>
+          </View>
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.success }]}>
+            Log ›
+          </Text>
+        </Pressable>
+
         {/* ─── Intensity rows ─────────────────────────── */}
+        <Text
+          style={[
+            theme.typography.captionMedium,
+            { color: theme.colors.textMuted, marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm },
+          ]}
+        >
+          OR RATE SPECIFIC SYMPTOMS
+        </Text>
         <View style={[styles.section, { backgroundColor: theme.colors.surface, borderRadius: theme.radii.lg }]}>
           {SIDE_EFFECT_METRICS.map((m, idx) => (
             <View
@@ -287,5 +352,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
+  },
+  feelingGreatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    marginTop: 16,
   },
 });
