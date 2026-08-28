@@ -26,8 +26,10 @@ import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { ShareableProgressCard } from '../../components/ShareableProgressCard';
 import { SoftReviewPromptSheet } from '../../components/SoftReviewPromptSheet';
+import { CycleConciergeCard } from '../../components/CycleConciergeCard';
 import { SmartAlertsSheet } from '../../components/SmartAlertsSheet';
 import { adherenceCount, recentWeeklyAdherence } from '../../domain/adherence';
+import { buildCycleConcierge, type ConciergeAction } from '../../domain/cycleConcierge';
 import { daysUntilEligibleToBump, nextRung } from '../../domain/dose';
 import {
   computeEntitlement,
@@ -114,6 +116,7 @@ export function HomeScreen(): React.ReactElement {
     };
   }, []);
   const coach = useMemo(() => buildTodaysCoach(db, today), [db, today]);
+  const cycleConcierge = useMemo(() => buildCycleConcierge(db, today), [db, today]);
 
   // Active GLP-1 blood level and cycle phase
   const activeLevel = useMemo(
@@ -222,6 +225,38 @@ export function HomeScreen(): React.ReactElement {
         return;
       case 'SETTINGS_EXPORT':
         openExportDialog();
+    }
+  };
+
+  const onConciergeAction = (action: ConciergeAction): void => {
+    switch (action.type) {
+      case 'SHOT':
+        openShotLog();
+        return;
+      case 'WEIGHT':
+        openWeightSheet();
+        return;
+      case 'SYMPTOMS':
+        openSymptomsLog();
+        return;
+      case 'FOOD':
+        openFoodLog(action.initialTab ?? 'PROTEIN');
+        return;
+      case 'DOSE':
+        openDoseLadder();
+        return;
+      case 'REFILL':
+        openRefill();
+        return;
+      case 'WEEKLY_PROGRESS':
+        openWeeklyProgress();
+        return;
+      case 'DOCTOR_REPORT':
+        openDoctorReport();
+        return;
+      case 'MEDICATION_LEVELS':
+        openMedicationLevels();
+        return;
     }
   };
 
@@ -539,76 +574,25 @@ export function HomeScreen(): React.ReactElement {
           </Pressable>
         )}
 
-        {/* ─── Today’s coach ──────────────────────────────────── */}
+        {/* ─── Cycle-Aware Concierge & Ritual ─────────────────── */}
         {hasProAccess ? (
-          <Card
-            accent
-            style={{ marginBottom: theme.spacing.md }}
-            accessibilityLabel={`${coach.eyebrow}. ${coach.title}. ${coach.detail}. Adherence: ${adherenceHits} of last ${ADHERENCE_WEEKS} weeks.`}
-          >
-            <View style={styles.topCardRow}>
-              <View style={styles.topCardText}>
-                <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-                  {coach.eyebrow}
-                </Text>
-                <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-                  {coach.title}
-                </Text>
-                <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
-                  {coach.detail}
-                </Text>
-                {coach.checklist.length > 0 && (
-                  <View style={styles.coachChecklist}>
-                    {coach.checklist.map((item) => (
-                      <CoachChecklistLine
-                        key={item.label}
-                        label={item.label}
-                        complete={item.complete}
-                      />
-                    ))}
-                  </View>
-                )}
-                {coach.actions.length > 0 && (
-                  <View style={styles.coachActions}>
-                    {coach.actions.map((action) => (
-                      <CoachChip
-                        key={`${action.type}-${action.label}`}
-                        action={action}
-                        onPress={() => onAlertAction(action.type)}
-                      />
-                    ))}
-                  </View>
-                )}
-              </View>
-              <View style={styles.topCardRing}>
-                <AdherenceRing adherence={adherence} size={64} thickness={9} />
-                <Text
-                  style={[
-                    theme.typography.caption,
-                    { color: theme.colors.textMuted, marginTop: 4, fontSize: 10 },
-                  ]}
-                >
-                  Last {ADHERENCE_WEEKS} wks
-                </Text>
-              </View>
-            </View>
-          </Card>
+          <CycleConciergeCard concierge={cycleConcierge} onAction={onConciergeAction} />
         ) : (
           <Card
             accent
             style={{ marginBottom: theme.spacing.md }}
             onPress={() => navigation.navigate('Paywall')}
-            accessibilityLabel="Today’s Coach is paused. Subscribe to unlock."
+            accessibilityLabel="Cycle-Aware GLP-1 Concierge is paused. Subscribe to unlock."
             accessibilityHint="Opens the subscription screen"
           >
             <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-              TODAY’S COACH
+              GLP-1 CYCLE CONCIERGE
             </Text>
             <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
-              Your GLP-1 coach is paused
+              Your GLP-1 concierge is paused
             </Text>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
-              Subscribe to keep daily guidance, smart alerts, weekly progress, and doctor-ready reports active.
+              Subscribe to unlock 7-day cycle guidance, Shot Day rituals, symptom check-ins, and titration milestones.
             </Text>
             <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
               Subscribe to unlock {'\u203a'}

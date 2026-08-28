@@ -470,6 +470,9 @@ export function SettingsScreen(): React.ReactElement {
               {profile.weight > 0 ? 'Edit' : 'Set'}
             </Text>
           </Pressable>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 8, lineHeight: 17 }]}>
+            Recommended: Update your weight once a week on shot day morning before eating to avoid natural daily water fluctuations.
+          </Text>
         </Section>
 
         {/* ─── Shot day ───────────────────────────────────── */}

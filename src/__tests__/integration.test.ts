@@ -20,6 +20,7 @@ import {
   FOOD_PRESETS,
   totalProteinForDay,
 } from '../domain/food';
+import { buildCycleConcierge } from '../domain/cycleConcierge';
 import {
   buildWaterEntry,
   entriesForDay as waterEntriesForDay,
@@ -1179,6 +1180,48 @@ describe('User Journey: Active GLP-1 Levels, Half-Life Curve & Titration Simulat
     expect(reloaded2.waterEntries).toHaveLength(3);
     const finalTotal = totalWaterForDay(reloaded2.waterEntries, new Date('2026-08-28T12:00:00Z'));
     expect(finalTotal.oz).toBe(72);
+  });
+
+  it('scenario 18: full 7-day cycle concierge transitions from shot day ritual to peak, steady, and appetite trough', async () => {
+    let db = applyOnboarding(freshDb(), {
+      drug: 'OZEMPIC',
+      shotDay: 'SUNDAY',
+      currentDoseMg: 0.5,
+      currentDoseLabel: '0.5 mg',
+    });
+
+    // 0. Before any shots
+    let concierge = buildCycleConcierge(db, new Date('2026-08-23T08:00:00Z'));
+    expect(concierge.phase).toBe('NO_SHOTS_YET');
+
+    // 1. Log an earlier shot so we are in regular active cycle
+    db = logInjection(db, 'BELLY_UL', new Date('2026-08-16T09:00:00Z'));
+
+    // 2. Sunday morning (Shot Day - Pending)
+    const sundayMorning = new Date('2026-08-23T08:30:00Z');
+    concierge = buildCycleConcierge(db, sundayMorning);
+    expect(concierge.phase).toBe('SHOT_DAY_PENDING');
+    expect(concierge.ritualSteps).toHaveLength(3);
+
+    // 3. User logs Sunday shot
+    db = logInjection(db, 'BELLY_UR', new Date('2026-08-23T09:00:00Z'));
+    concierge = buildCycleConcierge(db, new Date('2026-08-23T11:00:00Z'));
+    expect(concierge.phase).toBe('SHOT_DAY_COMPLETED');
+
+    // 4. Monday (Day 1 - Peak Concentration)
+    concierge = buildCycleConcierge(db, new Date('2026-08-24T12:00:00Z'));
+    expect(concierge.phase).toBe('PEAK_WINDOW');
+    expect(concierge.primaryAction.type).toBe('SYMPTOMS');
+
+    // 5. Wednesday (Day 3 - Steady State)
+    concierge = buildCycleConcierge(db, new Date('2026-08-26T12:00:00Z'));
+    expect(concierge.phase).toBe('STEADY_STATE');
+    expect(concierge.primaryAction.type).toBe('FOOD');
+
+    // 6. Friday (Day 5 - Appetite Trough)
+    concierge = buildCycleConcierge(db, new Date('2026-08-28T12:00:00Z'));
+    expect(concierge.phase).toBe('TROUGH_APPETITE');
+    expect(concierge.insight).toContain('food noise is 100% normal');
   });
 });
 
