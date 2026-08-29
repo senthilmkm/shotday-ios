@@ -28,8 +28,11 @@ import { ShareableProgressCard } from '../../components/ShareableProgressCard';
 import { SoftReviewPromptSheet } from '../../components/SoftReviewPromptSheet';
 import { CycleConciergeCard } from '../../components/CycleConciergeCard';
 import { SmartAlertsSheet } from '../../components/SmartAlertsSheet';
+import { SatietyShieldHeader } from '../../components/SatietyShieldHeader';
+import { QuickLogMicroBar } from '../../components/QuickLogMicroBar';
 import { adherenceCount, recentWeeklyAdherence } from '../../domain/adherence';
 import { buildCycleConcierge, type ConciergeAction } from '../../domain/cycleConcierge';
+import { dayAfterShotClamped } from '../../domain/dateMath';
 import { daysUntilEligibleToBump, nextRung } from '../../domain/dose';
 import {
   computeEntitlement,
@@ -41,6 +44,7 @@ import { totalProteinForDay } from '../../domain/food';
 import { summarizeActiveLevel } from '../../domain/medicationLevel';
 import { proteinProgress, proteinTargetGrams } from '../../domain/protein';
 import { refillStatus } from '../../domain/refill';
+import type { FoodEntry, WaterEntry } from '../../types/domain';
 import {
   APP_STORE_REVIEW_URL,
   APP_STORE_REVIEW_WEB_URL,
@@ -287,6 +291,38 @@ export function HomeScreen(): React.ReactElement {
       ],
     );
   };
+
+  const handleAddQuickWater = (oz: number): void => {
+    const newEntry: WaterEntry = {
+      id: `w-${Date.now()}`,
+      amountOz: oz,
+      loggedAt: new Date().toISOString(),
+      label: `${oz} oz quick log`,
+    };
+    updateDb((prev) => ({
+      ...prev,
+      waterEntries: [...(prev.waterEntries ?? []), newEntry],
+    }));
+  };
+
+  const handleAddQuickProtein = (grams: number): void => {
+    const newEntry: FoodEntry = {
+      id: `f-${Date.now()}`,
+      name: 'Quick Protein',
+      proteinGrams: grams,
+      preset: false,
+      loggedAt: new Date().toISOString(),
+    };
+    updateDb((prev) => ({
+      ...prev,
+      foods: [...prev.foods, newEntry],
+    }));
+  };
+
+  const dayAfterShot = useMemo(
+    () => dayAfterShotClamped(db.injections, today),
+    [db.injections, today],
+  );
 
   // Protein
   const proteinTarget = useMemo(() => {
@@ -574,6 +610,23 @@ export function HomeScreen(): React.ReactElement {
           </Pressable>
         )}
 
+        {/* ─── Living Biological Aura & Satiety Shield ────────── */}
+        <SatietyShieldHeader
+          drugName={db.profile.drug === 'OTHER' ? (db.profile.customDrugName || 'GLP-1') : db.profile.drug}
+          doseLabel={db.profile.currentDoseLabel || `${db.profile.currentDoseMg} mg`}
+          activeLevelMg={activeLevel.currentActiveMg}
+          nominalDoseMg={db.profile.currentDoseMg}
+          dayAfterShot={dayAfterShot}
+          onPress={openMedicationLevels}
+        />
+
+        {/* ─── 1-Tap Quick Action Micro-Bar ───────────────────────── */}
+        <QuickLogMicroBar
+          onAddWaterOz={handleAddQuickWater}
+          onAddProteinGrams={handleAddQuickProtein}
+          onOpenSymptoms={openSymptomsLog}
+        />
+
         {/* ─── Cycle-Aware Concierge & Ritual ─────────────────── */}
         {hasProAccess ? (
           <CycleConciergeCard concierge={cycleConcierge} onAction={onConciergeAction} />
@@ -830,6 +883,13 @@ export function HomeScreen(): React.ReactElement {
             </View>
           )}
         </Pressable>
+
+        {/* ─── Educational & Clinical Disclaimer ────────────────── */}
+        <View style={styles.disclaimerBox}>
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, textAlign: 'center', fontSize: 10, lineHeight: 15 }]}>
+            ⚕️ For educational and habit-tracking reference only. Shotday does not provide medical advice, diagnosis, or treatment. Always follow your prescribing clinician's instructions.
+          </Text>
+        </View>
       </ScrollView>
       <AddWeightSheet
         visible={weightSheetOpen}
@@ -1115,5 +1175,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 3,
+  },
+  disclaimerBox: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 4,
+    marginBottom: 16,
   },
 });

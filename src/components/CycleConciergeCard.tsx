@@ -2,8 +2,11 @@ import {
   Activity,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   FileText,
   HeartPulse,
+  Info,
   Pill,
   Scale,
   Sparkles,
@@ -11,10 +14,11 @@ import {
   Utensils,
   type LucideIcon,
 } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Card } from './Card';
-import type { ConciergeAction, CycleConcierge } from '../domain/cycleConcierge';
+import type { ConciergeAction, CycleConcierge, CycleForecastDay } from '../domain/cycleConcierge';
 import { useTheme } from '../theme/ThemeProvider';
 
 interface CycleConciergeCardProps {
@@ -39,6 +43,7 @@ export function CycleConciergeCard({
   onAction,
 }: CycleConciergeCardProps): React.ReactElement {
   const theme = useTheme();
+  const [selectedForecastDay, setSelectedForecastDay] = useState<CycleForecastDay | null>(null);
 
   const badgeBg =
     concierge.badgeType === 'success'
@@ -57,6 +62,8 @@ export function CycleConciergeCard({
         : theme.colors.primary;
 
   const PrimaryIcon = ACTION_ICONS[concierge.primaryAction.type] ?? Sparkles;
+  const activeDay = concierge.forecast.find((f) => f.isToday) ?? concierge.forecast[0];
+  const displayedDay = selectedForecastDay ?? activeDay;
 
   return (
     <Card
@@ -103,6 +110,88 @@ export function CycleConciergeCard({
       >
         {concierge.insight}
       </Text>
+
+      {/* ─── 7-Day Cycle Forecast Strip ──────────────────── */}
+      {concierge.forecast && concierge.forecast.length === 7 && (
+        <View style={[styles.forecastContainer, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border }]}>
+          <View style={styles.forecastHeader}>
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.text, fontSize: 11 }]}>
+              7-Day GLP-1 Cycle Forecast
+            </Text>
+            {displayedDay && (
+              <Text style={[theme.typography.caption, { color: theme.colors.primary, fontSize: 11, fontWeight: '600' }]}>
+                {displayedDay.foodNoiseLabel}
+              </Text>
+            )}
+          </View>
+
+          {/* 7-Day Interactive Pills */}
+          <View style={styles.forecastPillsRow}>
+            {concierge.forecast.map((fDay) => {
+              const isSelected = displayedDay?.dayNumber === fDay.dayNumber;
+              const isToday = fDay.isToday;
+
+              return (
+                <Pressable
+                  key={fDay.dayNumber}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    setSelectedForecastDay(fDay);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Day ${fDay.dayNumber}: ${fDay.name}, ${fDay.foodNoiseLabel}`}
+                  style={({ pressed }) => [
+                    styles.dayPill,
+                    {
+                      backgroundColor: isToday
+                        ? theme.colors.primary
+                        : isSelected
+                          ? theme.colors.primary + '20'
+                          : theme.colors.surface,
+                      borderColor: isToday
+                        ? theme.colors.primary
+                        : isSelected
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dayPillNumber,
+                      { color: isToday ? '#FFFFFF' : isSelected ? theme.colors.primary : theme.colors.text },
+                    ]}
+                  >
+                    D{fDay.dayNumber}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.dayPillNoise,
+                      { color: isToday ? '#FFFFFFcc' : theme.colors.textMuted },
+                    ]}
+                  >
+                    {fDay.foodNoise === 'SILENT' ? '🤫' : fDay.foodNoise === 'VERY_LOW' ? '⚡' : fDay.foodNoise === 'MODERATE' ? '🌊' : '🍽️'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Selected Day Tip Box */}
+          {displayedDay && (
+            <View style={styles.forecastTipRow}>
+              <Info size={13} color={theme.colors.primary} style={{ marginTop: 2 }} />
+              <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginLeft: 6, flex: 1, fontSize: 11, lineHeight: 16 }]}>
+                <Text style={{ color: theme.colors.text, fontWeight: '600' }}>
+                  {displayedDay.name} ({displayedDay.phaseTitle}):{' '}
+                </Text>
+                {displayedDay.tip}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* ─── 3-Step Ritual Checklist (Shot Day Only) ─────── */}
       {concierge.ritualSteps && concierge.ritualSteps.length > 0 && (
@@ -192,6 +281,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignSelf: 'flex-start',
   },
+  forecastContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
+  },
+  forecastHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  forecastPillsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  dayPill: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  dayPillNumber: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dayPillNoise: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  forecastTipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: '#88888830',
+  },
   ritualBox: {
     padding: 12,
     borderWidth: 1,
@@ -220,3 +349,4 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
 });
+

@@ -40,6 +40,19 @@ export interface ConciergeAction {
   initialTab?: 'PROTEIN' | 'WATER';
 }
 
+export type FoodNoiseLevel = 'SILENT' | 'VERY_LOW' | 'MODERATE' | 'RETURNING';
+
+export interface CycleForecastDay {
+  dayNumber: number;
+  offsetFromShot: number;
+  name: string;
+  phaseTitle: string;
+  foodNoise: FoodNoiseLevel;
+  foodNoiseLabel: string;
+  isToday: boolean;
+  tip: string;
+}
+
 export interface CycleConcierge {
   phase: ConciergePhase;
   badgeLabel: string;
@@ -51,6 +64,7 @@ export interface CycleConcierge {
   suggestedZoneLabel?: string;
   primaryAction: ConciergeAction;
   secondaryAction?: ConciergeAction;
+  forecast: CycleForecastDay[];
 }
 
 const ZONE_NAMES: Record<InjectionZone, string> = {
@@ -65,6 +79,81 @@ const ZONE_NAMES: Record<InjectionZone, string> = {
   OTHER: 'Alternative site',
 };
 
+export function buildCycleForecast(dayAfterShot: number | null): CycleForecastDay[] {
+  const currentOffset = dayAfterShot === null ? 0 : Math.max(0, Math.min(6, dayAfterShot));
+
+  const templates: Omit<CycleForecastDay, 'isToday'>[] = [
+    {
+      dayNumber: 1,
+      offsetFromShot: 0,
+      name: 'Shot Day',
+      phaseTitle: 'Dose Absorption',
+      foodNoise: 'MODERATE',
+      foodNoiseLabel: 'Fading Out',
+      tip: 'Stay ahead of nausea with extra water & electrolytes.',
+    },
+    {
+      dayNumber: 2,
+      offsetFromShot: 1,
+      name: 'Day 2',
+      phaseTitle: 'Peak Blood Shield',
+      foodNoise: 'SILENT',
+      foodNoiseLabel: 'Silent (Peak)',
+      tip: 'Active concentration peaking. Eat small, dense meals.',
+    },
+    {
+      dayNumber: 3,
+      offsetFromShot: 2,
+      name: 'Day 3',
+      phaseTitle: 'Maximum Satiety',
+      foodNoise: 'SILENT',
+      foodNoiseLabel: 'Silent',
+      tip: 'Appetite quieted. Focus on protein to protect muscle.',
+    },
+    {
+      dayNumber: 4,
+      offsetFromShot: 3,
+      name: 'Day 4',
+      phaseTitle: 'Steady Metabolic State',
+      foodNoise: 'VERY_LOW',
+      foodNoiseLabel: 'Calm & Steady',
+      tip: 'Optimal physical energy. Great day for workouts.',
+    },
+    {
+      dayNumber: 5,
+      offsetFromShot: 4,
+      name: 'Day 5',
+      phaseTitle: 'Steady Balance',
+      foodNoise: 'VERY_LOW',
+      foodNoiseLabel: 'Controlled',
+      tip: 'Keep up your daily water and lean protein routine.',
+    },
+    {
+      dayNumber: 6,
+      offsetFromShot: 5,
+      name: 'Day 6',
+      phaseTitle: 'The Drift Zone',
+      foodNoise: 'MODERATE',
+      foodNoiseLabel: 'Mild Cravings',
+      tip: 'Half-life dipping: gentle appetite return is biological and normal.',
+    },
+    {
+      dayNumber: 7,
+      offsetFromShot: 6,
+      name: 'Day 7',
+      phaseTitle: 'Pre-Shot Preparation',
+      foodNoise: 'RETURNING',
+      foodNoiseLabel: 'Appetite Returning',
+      tip: 'Prepare your next dose and pick your rotation site.',
+    },
+  ];
+
+  return templates.map((t) => ({
+    ...t,
+    isToday: t.offsetFromShot === currentOffset,
+  }));
+}
+
 /**
  * Builds the current CycleConcierge state based on the patient's GLP-1
  * injection history, current day of the week, active titration stage,
@@ -78,6 +167,8 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
 
   const suggestedZone = suggestNextZone(db.injections);
   const suggestedZoneLabel = ZONE_NAMES[suggestedZone];
+  const day = dayAfterShotClamped(db.injections, now) ?? (sinceLast !== null ? Math.min(6, sinceLast) : null);
+  const forecast = buildCycleForecast(day);
 
   // 1. Fresh onboarding / No shots logged yet
   if (!lastShot || sinceLast === null) {
@@ -91,6 +182,7 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
       suggestedZoneLabel,
       primaryAction: { type: 'SHOT', label: 'Log first shot' },
       secondaryAction: { type: 'DOSE', label: 'Check dose' },
+      forecast,
     };
   }
 
@@ -112,6 +204,7 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
       suggestedZoneLabel,
       primaryAction: { type: 'SHOT', label: 'Start Shot Routine' },
       secondaryAction: { type: 'WEIGHT', label: 'Log weight' },
+      forecast,
     };
   }
 
@@ -131,6 +224,7 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
       suggestedZoneLabel,
       primaryAction: { type: 'SHOT', label: 'Log missed shot' },
       secondaryAction: { type: 'MEDICATION_LEVELS', label: 'View active level' },
+      forecast,
     };
   }
 
@@ -145,6 +239,7 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
       insight: `Great job! Logged at ${zoneName}. Medication concentration will peak over the next 24–48 hours. Drink extra water today to stay ahead of nausea.`,
       primaryAction: { type: 'FOOD', label: 'Log water & hydration', initialTab: 'WATER' },
       secondaryAction: { type: 'MEDICATION_LEVELS', label: 'View curve forecast' },
+      forecast,
     };
   }
 
@@ -162,6 +257,7 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
       insight: `You've finished 4 weeks at this dose. Standard clinical escalation protocols suggest evaluating with your prescriber whether to step up to ${upcomingDose.label}.`,
       primaryAction: { type: 'DOSE', label: 'View dose ladder' },
       secondaryAction: { type: 'DOCTOR_REPORT', label: 'Generate doctor report' },
+      forecast,
     };
   }
 
@@ -176,12 +272,12 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
       insight: 'Request your pharmacy refill now to prevent missed shot days or therapy interruptions.',
       primaryAction: { type: 'REFILL', label: 'Manage refill' },
       secondaryAction: { type: 'DOCTOR_REPORT', label: 'Doctor report' },
+      forecast,
     };
   }
 
   // 5. Day 1–2 Post-Shot: Peak Blood Concentration Window ⚡
-  const day = dayAfterShotClamped(db.injections, now) ?? sinceLast;
-  if (day >= 1 && day <= 2) {
+  if (day !== null && day >= 1 && day <= 2) {
     return {
       phase: 'PEAK_WINDOW',
       badgeLabel: `⚡ PEAK CONCENTRATION (DAY ${day}/7)`,
@@ -191,13 +287,13 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
         'Blood concentration is at its weekly maximum. Mild fatigue or nausea is normal as your body adjusts. Take 30 seconds to check in on symptoms and stay hydrated.',
       primaryAction: { type: 'SYMPTOMS', label: '30s Symptom Check-in' },
       secondaryAction: { type: 'FOOD', label: 'Log hydration', initialTab: 'WATER' },
+      forecast,
     };
   }
 
   // 6. Day 3–4 Post-Shot: Steady State & Satiety Window 🛡️
-  if (day >= 3 && day <= 4) {
+  if (day !== null && day >= 3 && day <= 4) {
     const proteinTarget = db.profile.weight > 0 ? Math.round(db.profile.weight * (db.profile.weightUnit === 'LB' ? 0.7 : 1.54)) : 80;
-    const proteinToday = totalProteinForDay(db.foods, now);
     return {
       phase: 'STEADY_STATE',
       badgeLabel: `🛡️ STEADY STATE (DAY ${day}/7)`,
@@ -206,18 +302,20 @@ export function buildCycleConcierge(db: ShotdayDb, now: Date = new Date()): Cycl
       insight: `Blood levels are stable and appetite suppression is high. Prioritize hitting your ${proteinTarget}g protein target today to protect lean muscle mass.`,
       primaryAction: { type: 'FOOD', label: 'Log protein & water', initialTab: 'PROTEIN' },
       secondaryAction: { type: 'MEDICATION_LEVELS', label: 'View active curve' },
+      forecast,
     };
   }
 
   // 7. Day 5–6 Post-Shot: Trough & Food Noise Window 🍽️
   return {
     phase: 'TROUGH_APPETITE',
-    badgeLabel: `🍽️ APPETITE WINDOW (DAY ${day}/7)`,
+    badgeLabel: `🍽️ APPETITE WINDOW (DAY ${day ?? 5}/7)`,
     badgeType: 'info',
     headline: 'Medication is in weekly trough',
     insight:
       'Mild appetite return or food noise is 100% normal towards the end of your weekly cycle—your medicine is still working! Prioritize high-satiety protein and fiber.',
     primaryAction: { type: 'FOOD', label: 'Log daily fuel', initialTab: 'PROTEIN' },
     secondaryAction: { type: 'WEEKLY_PROGRESS', label: 'View weekly progress' },
+    forecast,
   };
 }

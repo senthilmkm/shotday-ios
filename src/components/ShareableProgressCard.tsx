@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
-import { Award, Flame, Scale, Share2, Syringe, X } from 'lucide-react-native';
-import React from 'react';
+import { Award, Check, Copy, Flame, MessageSquare, Scale, Share2, Sparkles, Syringe, X } from 'lucide-react-native';
+import React, { useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -24,6 +24,15 @@ interface ShareableProgressCardProps {
   onClose: () => void;
 }
 
+const NSV_OPTIONS = [
+  { id: 'food_noise', label: '🤫 Food noise vanished' },
+  { id: 'belt', label: '👔 Down belt notches' },
+  { id: 'airplane', label: '✈️ Comfort on flights' },
+  { id: 'labs', label: '🩺 Normalized A1C/labs' },
+  { id: 'energy', label: '⚡ All-day steady energy' },
+  { id: 'clothes', label: '👗 Fitting old clothes' },
+];
+
 export function ShareableProgressCard({
   visible,
   db,
@@ -31,7 +40,9 @@ export function ShareableProgressCard({
 }: ShareableProgressCardProps): React.ReactElement {
   const theme = useTheme();
   const today = new Date();
-  const [hideAbsoluteWeight, setHideAbsoluteWeight] = React.useState(true);
+  const [hideAbsoluteWeight, setHideAbsoluteWeight] = useState(true);
+  const [selectedNsvs, setSelectedNsvs] = useState<string[]>(['food_noise']);
+  const [copiedReddit, setCopiedReddit] = useState(false);
 
   const activeLevel = summarizeActiveLevel(db.injections, db.profile.drug, today);
   const milestone = weightMilestoneSummary(db, today);
@@ -44,18 +55,56 @@ export function ShareableProgressCard({
 
   const totalShots = db.injections.length;
 
-  const onShareText = async (): Promise<void> => {
+  const toggleNsv = (id: string) => {
     Haptics.selectionAsync().catch(() => {});
+    setSelectedNsvs((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : prev.length < 3 ? [...prev, id] : prev
+    );
+  };
+
+  const getSelectedNsvLabels = () => {
+    return NSV_OPTIONS.filter((opt) => selectedNsvs.includes(opt.id)).map((opt) => opt.label);
+  };
+
+  const buildShareBody = (format: 'SOCIAL' | 'REDDIT') => {
     const lossText = milestone.status === 'ACTIVE' && milestone.totalLost !== null
       ? `Down ${milestone.totalLost} ${milestone.unit}`
       : 'Tracking my GLP-1 journey';
 
-    const shareBody = [
-      `🎯 ${lossText} on ${drugName} (${db.profile.currentDoseLabel || 'Active dose'})`,
+    const objectComparison = milestone.milestoneObject
+      ? ` (Equivalent to 1 ${milestone.milestoneObject.name} ${milestone.milestoneObject.emoji}!)`
+      : '';
+
+    const nsvLabels = getSelectedNsvLabels();
+    const nsvText = nsvLabels.length > 0 ? `✨ NSVs: ${nsvLabels.join(' · ')}` : '';
+
+    if (format === 'REDDIT') {
+      const lines = [
+        `**🎯 My GLP-1 Journey Update**`,
+        `- **Medication:** ${drugName} (${db.profile.currentDoseLabel || 'Active dose'})`,
+        `- **Progress:** ${lossText}${objectComparison}`,
+        `- **Consistency:** ${hits}/8 recent weekly shots (${totalShots} total shots logged)`,
+        `- **Active Medication Level:** ~${activeLevel.currentActiveMg} mg active`,
+      ];
+      if (nsvText) lines.push(`- **Non-Scale Victories:** ${nsvLabels.join(' | ')}`);
+      lines.push('', `*Tracked privately with Shotday (on-device GLP-1 companion)*`);
+      return lines.join('\n');
+    }
+
+    return [
+      `🎯 ${lossText}${objectComparison} on ${drugName} (${db.profile.currentDoseLabel || 'Active dose'})`,
       `💉 ${totalShots} total shots logged · ${hits}/8 recent weekly consistency`,
+      nsvText,
       `📊 Current estimated active level: ${activeLevel.currentActiveMg} mg`,
       `🛡️ Tracked privately with Shotday (on-device GLP-1 companion)`,
-    ].join('\n\n');
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  };
+
+  const onShareText = async (): Promise<void> => {
+    Haptics.selectionAsync().catch(() => {});
+    const shareBody = buildShareBody('SOCIAL');
 
     try {
       await Share.share({
@@ -63,7 +112,23 @@ export function ShareableProgressCard({
         title: 'My GLP-1 Progress with Shotday',
       });
     } catch {
-      // Ignored if cancelled
+      // User cancelled
+    }
+  };
+
+  const onShareReddit = async (): Promise<void> => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    const redditBody = buildShareBody('REDDIT');
+    setCopiedReddit(true);
+    setTimeout(() => setCopiedReddit(false), 2500);
+
+    try {
+      await Share.share({
+        message: redditBody,
+        title: 'Reddit r/Zepbound / r/semaglutide Update',
+      });
+    } catch {
+      // User cancelled
     }
   };
 
@@ -77,7 +142,7 @@ export function ShareableProgressCard({
       <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]}>
         <View style={[styles.headerRow, { paddingHorizontal: theme.spacing.lg, paddingTop: theme.spacing.sm }]}>
           <Text style={[theme.typography.heading, { color: theme.colors.text, flex: 1 }]}>
-            Share Progress
+            Share Progress & NSVs
           </Text>
           <Pressable
             onPress={onClose}
@@ -98,8 +163,8 @@ export function ShareableProgressCard({
         </View>
 
         <ScrollView contentContainerStyle={{ padding: theme.spacing.lg, alignItems: 'center' }}>
-          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, textAlign: 'center', marginBottom: 12 }]}>
-            Screenshot this card or share your milestones to Reddit (r/Zepbound, r/semaglutide) and social channels. No private personal info is included.
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, textAlign: 'center', marginBottom: 14 }]}>
+            Screenshot this card or share directly to Reddit (<Text style={{ color: theme.colors.primary }}>r/Zepbound, r/semaglutide</Text>) and social channels.
           </Text>
 
           {/* Privacy Toggle */}
@@ -122,7 +187,7 @@ export function ShareableProgressCard({
             ]}
           >
             <Text style={[theme.typography.captionMedium, { color: theme.colors.text, fontSize: 11 }]}>
-              {hideAbsoluteWeight ? '🔒 Privacy: Showing Only Total Lost' : '⚖️ Showing Total Lost + Weight'}
+              {hideAbsoluteWeight ? '🔒 Privacy Mode: Showing Only Total Lost' : '⚖️ Showing Total Lost + Exact Weight'}
             </Text>
           </Pressable>
 
@@ -146,7 +211,7 @@ export function ShareableProgressCard({
                 </Text>
               </View>
               <Text style={[theme.typography.caption, { color: theme.colors.textMuted }]}>
-                GLP-1 Tracker
+                GLP-1 Milestone Card
               </Text>
             </View>
 
@@ -164,6 +229,49 @@ export function ShareableProgressCard({
                 {drugName} · {db.profile.currentDoseLabel || 'Dosing steady'}
               </Text>
             </View>
+
+            {/* Object Milestone Pill */}
+            {milestone.milestoneObject ? (
+              <View style={[styles.objectPill, { backgroundColor: theme.colors.primary + '18', borderColor: theme.colors.primary + '40' }]}>
+                <Text style={styles.objectEmoji}>{milestone.milestoneObject.emoji}</Text>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={[theme.typography.captionMedium, { color: theme.colors.primary, fontWeight: '700' }]}>
+                    Lost the weight of 1 {milestone.milestoneObject.name}!
+                  </Text>
+                  <Text style={[theme.typography.caption, { color: theme.colors.textMuted, fontSize: 10 }]}>
+                    Equal to {milestone.milestoneObject.comparison}
+                  </Text>
+                </View>
+              </View>
+            ) : milestone.nextMilestoneObject ? (
+              <View style={[styles.objectPill, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border }]}>
+                <Text style={styles.objectEmoji}>{milestone.nextMilestoneObject.object.emoji}</Text>
+                <View style={{ flex: 1, marginLeft: 8 }}>
+                  <Text style={[theme.typography.captionMedium, { color: theme.colors.text }]}>
+                    Next Object: {milestone.nextMilestoneObject.object.name}
+                  </Text>
+                  <Text style={[theme.typography.caption, { color: theme.colors.textMuted, fontSize: 10 }]}>
+                    {milestone.nextMilestoneObject.remaining} {milestone.unit} away!
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Selected NSV Badges inside card */}
+            {selectedNsvs.length > 0 && (
+              <View style={styles.nsvCardContainer}>
+                {getSelectedNsvLabels().map((label, i) => (
+                  <View
+                    key={i}
+                    style={[styles.nsvMiniBadge, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border }]}
+                  >
+                    <Text style={[theme.typography.caption, { color: theme.colors.text, fontSize: 11 }]}>
+                      {label}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             {/* Stats Grid */}
             <View style={[styles.statsGrid, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceMuted }]}>
@@ -198,7 +306,7 @@ export function ShareableProgressCard({
               </View>
             </View>
 
-            {/* Privacy Badge */}
+            {/* Card Footer */}
             <View style={styles.cardFooter}>
               <Text style={[theme.typography.caption, { color: theme.colors.textMuted, fontSize: 10 }]}>
                 🔒 100% Private & On-Device · shotday.app
@@ -206,17 +314,64 @@ export function ShareableProgressCard({
             </View>
           </View>
 
-          {/* Action Buttons */}
-          <Button
-            label="Share Text Summary"
-            fullWidth
-            size="lg"
-            onPress={onShareText}
-            style={{ marginTop: 24 }}
-          />
+          {/* ─── NSV Quick Selector ─────────────────────────────── */}
+          <View style={styles.nsvSection}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Sparkles size={14} color={theme.colors.primary} />
+              <Text style={[theme.typography.captionMedium, { color: theme.colors.text, marginLeft: 6 }]}>
+                Include Non-Scale Victories (Select up to 3)
+              </Text>
+            </View>
+            <View style={styles.nsvChipsRow}>
+              {NSV_OPTIONS.map((opt) => {
+                const isSelected = selectedNsvs.includes(opt.id);
+                return (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => toggleNsv(opt.id)}
+                    style={[
+                      styles.nsvChip,
+                      {
+                        backgroundColor: isSelected ? theme.colors.primary + '20' : theme.colors.surfaceMuted,
+                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        theme.typography.caption,
+                        { color: isSelected ? theme.colors.primary : theme.colors.text, fontWeight: isSelected ? '600' : '400' },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
 
-          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 12, textAlign: 'center' }]}>
-            Tip: Take a screenshot of the card above to share as an image!
+          {/* ─── Action Buttons ─────────────────────────────────── */}
+          <View style={styles.actionBlock}>
+            <Button
+              label="Share Social Story / Text"
+              fullWidth
+              size="lg"
+              onPress={onShareText}
+            />
+
+            <Button
+              label={copiedReddit ? '✓ Copied Reddit Format!' : '📋 Share Reddit Format (r/Zepbound)'}
+              variant="secondary"
+              fullWidth
+              size="lg"
+              onPress={onShareReddit}
+              style={{ marginTop: 10 }}
+            />
+          </View>
+
+          <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 14, textAlign: 'center' }]}>
+            Tip: Take a screenshot of the card above to post directly to your Instagram or TikTok story!
           </Text>
         </ScrollView>
       </SafeAreaView>
@@ -252,7 +407,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   logoPill: {
     flexDirection: 'row',
@@ -263,13 +418,38 @@ const styles = StyleSheet.create({
   },
   heroBlock: {
     alignItems: 'center',
-    marginVertical: 12,
+    marginVertical: 8,
+  },
+  objectPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  objectEmoji: {
+    fontSize: 24,
+  },
+  nsvCardContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+    justifyContent: 'center',
+  },
+  nsvMiniBadge: {
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   statsGrid: {
     flexDirection: 'row',
     borderWidth: 1,
     borderRadius: 14,
-    marginTop: 16,
+    marginTop: 12,
     paddingVertical: 12,
     overflow: 'hidden',
   },
@@ -281,12 +461,34 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 14,
   },
   privacyToggle: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderWidth: 1,
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  nsvSection: {
+    width: '100%',
+    maxWidth: 360,
+    marginTop: 20,
+  },
+  nsvChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  nsvChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  actionBlock: {
+    width: '100%',
+    maxWidth: 360,
+    marginTop: 20,
   },
 });
+

@@ -183,4 +183,22 @@ describe('buildCycleConcierge', () => {
     expect(concierge.badgeType).toBe('warning');
     expect(concierge.primaryAction.type).toBe('REFILL');
   });
+
+  it('generates a 7-day rolling cycle forecast with active day highlighted', () => {
+    const shotTime = '2026-08-23T09:00:00Z'; // Sunday
+    const db = makeDb({
+      injections: [{ id: 'inj-1', takenAt: shotTime, zone: 'BELLY_UR', doseMg: 0.5 }],
+    });
+
+    // Monday (Day 1 post shot)
+    const monday = new Date('2026-08-24T12:00:00Z');
+    const concierge = buildCycleConcierge(db, monday);
+
+    expect(concierge.forecast).toHaveLength(7);
+    const todayForecast = concierge.forecast.find((f) => f.isToday);
+    expect(todayForecast).toBeDefined();
+    expect(todayForecast?.offsetFromShot).toBe(1);
+    expect(todayForecast?.foodNoise).toBe('SILENT');
+    expect(todayForecast?.name).toBe('Day 2');
+  });
 });

@@ -12,6 +12,7 @@ interface ShotCelebrationModalProps {
   nextShotDateStr: string;
   weekCount: number;
   onClose: () => void;
+  onShareMilestone?: () => void;
 }
 
 export function ShotCelebrationModal({
@@ -21,6 +22,7 @@ export function ShotCelebrationModal({
   nextShotDateStr,
   weekCount,
   onClose,
+  onShareMilestone,
 }: ShotCelebrationModalProps): React.ReactElement {
   const theme = useTheme();
 
@@ -102,7 +104,27 @@ export function ShotCelebrationModal({
             </View>
           </View>
 
-          <Button label="Done" fullWidth size="lg" onPress={onClose} style={{ marginTop: 20 }} />
+          {onShareMilestone && (
+            <Button
+              label="✨ Share Milestone & Stats"
+              variant="secondary"
+              fullWidth
+              size="lg"
+              onPress={() => {
+                onClose();
+                onShareMilestone();
+              }}
+              style={{ marginTop: 16 }}
+            />
+          )}
+
+          <Button
+            label="Done"
+            fullWidth
+            size="lg"
+            onPress={onClose}
+            style={{ marginTop: onShareMilestone ? 10 : 20 }}
+          />
         </View>
       </View>
     </Modal>
