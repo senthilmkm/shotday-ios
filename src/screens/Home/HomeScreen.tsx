@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   Activity,
   Bell,
+  Calendar,
   FileText,
   HeartPulse,
   History,
@@ -442,6 +443,24 @@ export function HomeScreen(): React.ReactElement {
             {greeting(today)}
           </Text>
           <View style={styles.headerActions}>
+            <Pressable
+              onPress={() => navigation.navigate('History')}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="View history and calendar"
+              accessibilityHint="Opens the calendar timeline and progress charts"
+              style={({ pressed }) => [
+                styles.headerIconButton,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderRadius: 999,
+                  opacity: pressed ? 0.6 : 1,
+                  marginRight: 8,
+                },
+              ]}
+            >
+              <Calendar size={18} color={theme.colors.text} strokeWidth={2} />
+            </Pressable>
             <Pressable
               onPress={() => setShareCardOpen(true)}
               hitSlop={12}
