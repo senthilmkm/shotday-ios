@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
 import {
   PanResponder,
@@ -167,6 +168,10 @@ export function MedicationLevelChart({
       }
     });
 
+    if (closestIdx !== selectedIndex) {
+      Haptics.selectionAsync().catch(() => {});
+    }
+
     setSelectedIndex(closestIdx);
     if (onSelectPoint) {
       onSelectPoint(points[closestIdx] ?? null);
@@ -206,7 +211,8 @@ export function MedicationLevelChart({
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id="medGradient" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor={theme.colors.primary} stopOpacity={0.4} />
+            <Stop offset="0%" stopColor={theme.colors.primary} stopOpacity={0.45} />
+            <Stop offset="55%" stopColor={theme.colors.primary} stopOpacity={0.15} />
             <Stop offset="100%" stopColor={theme.colors.primary} stopOpacity={0.0} />
           </LinearGradient>
         </Defs>
@@ -264,10 +270,20 @@ export function MedicationLevelChart({
           </>
         )}
 
-        {/* Area fill under medication curve */}
+        {/* Liquid Area fill under medication curve */}
         <Path d={areaPath} fill="url(#medGradient)" />
 
-        {/* Medication active level line */}
+        {/* Ambient Glow Stroke */}
+        <Path
+          d={linePath}
+          stroke={theme.colors.primary}
+          strokeWidth={6}
+          strokeOpacity={0.22}
+          fill="none"
+          strokeLinecap="round"
+        />
+
+        {/* Crisp Medication active level line */}
         <Path
           d={linePath}
           stroke={theme.colors.primary}
