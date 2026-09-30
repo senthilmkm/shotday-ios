@@ -46,37 +46,11 @@ function ProtectedMedicationLevelScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   return (
     <ProtectedFeature
-      title="Unlock active blood levels & curves"
-      body="Subscribe to see your estimated GLP-1 blood levels, peak/trough cycle forecast, weight correlation, and 4-week titration simulator."
+      title="Unlock estimated medication levels"
+      body="Subscribe for GLP-1 level curves, peak/trough timing, and titration tools. Shot logging stays free."
       onClose={() => navigation.goBack()}
     >
       <MedicationLevelScreen />
-    </ProtectedFeature>
-  );
-}
-
-function ProtectedDoseLadderScreen(): React.ReactElement {
-  const navigation = useNavigation<Nav>();
-  return (
-    <ProtectedFeature
-      title="Unlock dose tracking"
-      body="Subscribe to keep dose changes connected to your weekly coach, smart alerts, and doctor-ready report."
-      onClose={() => navigation.goBack()}
-    >
-      <DoseLadderScreen />
-    </ProtectedFeature>
-  );
-}
-
-function ProtectedRefillScreen(): React.ReactElement {
-  const navigation = useNavigation<Nav>();
-  return (
-    <ProtectedFeature
-      title="Unlock refill tracking"
-      body="Subscribe to keep refill reminders and medication history connected to your progress report."
-      onClose={() => navigation.goBack()}
-    >
-      <RefillScreen />
     </ProtectedFeature>
   );
 }
@@ -86,7 +60,7 @@ function ProtectedDoctorReportScreen(): React.ReactElement {
   return (
     <ProtectedFeature
       title="Unlock doctor-ready reports"
-      body="Subscribe to generate a shareable GLP-1 summary with shots, symptoms, weight, protein, refills, and visit notes."
+      body="Subscribe to generate a shareable GLP-1 summary. Shot, food, and symptom logging stay free."
       onClose={() => navigation.goBack()}
     >
       <DoctorReportScreen />
@@ -98,8 +72,8 @@ function ProtectedWeeklyProgressScreen(): React.ReactElement {
   const navigation = useNavigation<Nav>();
   return (
     <ProtectedFeature
-      title="Unlock weekly progress"
-      body="Subscribe to keep your progress score, weight milestones, rhythm rows, and weekly coach insights active."
+      title="Unlock weekly milestones"
+      body="Subscribe for progress score, weight milestones, and weekly rhythm. Shot, food, and symptom logging stay free."
       onClose={() => navigation.goBack()}
     >
       <WeeklyProgressScreen />
@@ -135,7 +109,7 @@ export function AppNavigator(): React.ReactElement {
       />
       <Stack.Screen
         name="DoseLadder"
-        component={ProtectedDoseLadderScreen}
+        component={DoseLadderScreen}
         options={{
           presentation: 'modal',
           headerTitle: '',
@@ -144,7 +118,7 @@ export function AppNavigator(): React.ReactElement {
       />
       <Stack.Screen
         name="Refill"
-        component={ProtectedRefillScreen}
+        component={RefillScreen}
         options={{
           presentation: 'modal',
           headerTitle: '',

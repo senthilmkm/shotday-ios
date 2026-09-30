@@ -440,7 +440,7 @@ export function QuickSetupScreen({}: Props): React.ReactElement {
             },
           ]}
         >
-          You can change anything later in Settings.
+          You can change anything later in Settings. Logging stays free. A 14-day Pro trial covers coach, alerts, milestones, and reports.
         </Text>
       </ScrollView>
 

@@ -104,7 +104,7 @@ export function WelcomeScreen({ navigation }: Props): React.ReactElement {
                 { color: theme.colors.textMuted, marginLeft: 6 },
               ]}
             >
-              100% On-Device · No accounts · Total privacy
+              100% On-Device · Logging stays free · No accounts
             </Text>
           </View>
 
@@ -114,6 +114,19 @@ export function WelcomeScreen({ navigation }: Props): React.ReactElement {
             size="lg"
             onPress={() => navigation.navigate('QuickSetup')}
           />
+          <Text
+            style={[
+              theme.typography.caption,
+              {
+                color: theme.colors.textMuted,
+                textAlign: 'center',
+                marginTop: theme.spacing.sm,
+                lineHeight: 18,
+              },
+            ]}
+          >
+            Shot, food, and symptom logging stay free. A 14-day Pro trial covers coach, alerts, milestones, and reports.
+          </Text>
 
           <Text
             style={[

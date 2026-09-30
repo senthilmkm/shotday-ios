@@ -29,11 +29,11 @@ import { ShareableProgressCard } from '../../components/ShareableProgressCard';
 import { SoftReviewPromptSheet } from '../../components/SoftReviewPromptSheet';
 import { CycleConciergeCard } from '../../components/CycleConciergeCard';
 import { SmartAlertsSheet } from '../../components/SmartAlertsSheet';
-import { SatietyShieldHeader } from '../../components/SatietyShieldHeader';
+import { TroughDayRing } from '../../components/TroughDayRing';
+import { TroughDayShareCard } from '../../components/TroughDayShareCard';
 import { QuickLogMicroBar } from '../../components/QuickLogMicroBar';
 import { adherenceCount, recentWeeklyAdherence } from '../../domain/adherence';
 import { buildCycleConcierge, type ConciergeAction } from '../../domain/cycleConcierge';
-import { dayAfterShotClamped } from '../../domain/dateMath';
 import { daysUntilEligibleToBump, nextRung } from '../../domain/dose';
 import {
   computeEntitlement,
@@ -43,6 +43,7 @@ import {
 import { buildCsv, buildJson } from '../../domain/export';
 import { totalProteinForDay } from '../../domain/food';
 import { summarizeActiveLevel } from '../../domain/medicationLevel';
+import { buildTroughDayState } from '../../domain/troughDay';
 import { proteinProgress, proteinTargetGrams } from '../../domain/protein';
 import { refillStatus } from '../../domain/refill';
 import type { FoodEntry, WaterEntry } from '../../types/domain';
@@ -103,6 +104,7 @@ export function HomeScreen(): React.ReactElement {
   const [weightSheetOpen, setWeightSheetOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [shareCardOpen, setShareCardOpen] = useState(false);
+  const [troughShareOpen, setTroughShareOpen] = useState(false);
   const [reviewPromptOpen, setReviewPromptOpen] = useState(false);
   const [reviewPromptShownThisSession, setReviewPromptShownThisSession] = useState(false);
 
@@ -128,6 +130,9 @@ export function HomeScreen(): React.ReactElement {
     () => summarizeActiveLevel(db.injections, db.profile.drug, today),
     [db.injections, db.profile.drug, today],
   );
+
+  // Free Trough Day hero (named cycle day — no mg)
+  const troughDay = useMemo(() => buildTroughDayState(db, today), [db, today]);
 
   // Adherence ring: how many of the last 8 weekly windows had a shot
   // logged? The current (in-progress) week shows hollow until logged.
@@ -166,27 +171,27 @@ export function HomeScreen(): React.ReactElement {
   };
 
   const openDoseLadder = (): void => {
-    if (requireProAccess()) navigation.navigate('DoseLadder');
+    navigation.navigate('DoseLadder');
   };
 
   const openShotLog = (): void => {
-    if (requireProAccess()) navigation.navigate('Shot');
+    navigation.navigate('Shot');
   };
 
   const openWeightSheet = (): void => {
-    if (requireProAccess()) setWeightSheetOpen(true);
+    setWeightSheetOpen(true);
   };
 
   const openSymptomsLog = (): void => {
-    if (requireProAccess()) navigation.navigate('Symptoms');
+    navigation.navigate('Symptoms');
   };
 
   const openFoodLog = (initialTab: 'PROTEIN' | 'WATER' = 'PROTEIN'): void => {
-    if (requireProAccess()) navigation.navigate('Food', { initialTab });
+    navigation.navigate('Food', { initialTab });
   };
 
   const openRefill = (): void => {
-    if (requireProAccess()) navigation.navigate('Refill');
+    navigation.navigate('Refill');
   };
 
   const openWeeklyProgress = (): void => {
@@ -320,11 +325,6 @@ export function HomeScreen(): React.ReactElement {
     }));
   };
 
-  const dayAfterShot = useMemo(
-    () => dayAfterShotClamped(db.injections, today),
-    [db.injections, today],
-  );
-
   // Protein
   const proteinTarget = useMemo(() => {
     if (db.profile.weight <= 0) return 0;
@@ -378,6 +378,18 @@ export function HomeScreen(): React.ReactElement {
   const entitlement = computeEntitlement(db.profile, today);
   const trialDays = trialDaysRemaining(db.profile, today);
   const showTrialBanner = shouldShowTrialBanner(db.profile, today);
+  const [onboardingPaywallShownThisSession, setOnboardingPaywallShownThisSession] = useState(false);
+
+  useEffect(() => {
+    if (db.profile.onboardingComplete && !db.profile.proUntil && !onboardingPaywallShownThisSession) {
+      setOnboardingPaywallShownThisSession(true);
+      const timer = setTimeout(() => {
+        navigation.navigate('Paywall');
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [db.profile.onboardingComplete, db.profile.proUntil, onboardingPaywallShownThisSession, navigation]);
+
 
   useEffect(() => {
     if (reviewPromptShownThisSession || reviewPromptOpen) return;
@@ -462,7 +474,9 @@ export function HomeScreen(): React.ReactElement {
               <Calendar size={18} color={theme.colors.text} strokeWidth={2} />
             </Pressable>
             <Pressable
-              onPress={() => setShareCardOpen(true)}
+              onPress={() => {
+                if (requireProAccess()) setShareCardOpen(true);
+              }}
               hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel="Share progress card"
@@ -583,7 +597,7 @@ export function HomeScreen(): React.ReactElement {
                       : `TRIAL ENDS IN ${trialDays} DAY${trialDays === 1 ? '' : 'S'}`}
                   </Text>
                   <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
-                    Keep Today’s Coach, doctor reports, milestones, and smart alerts.
+                    Logging stays free. Keep coach, doctor reports, milestones, and smart alerts.
                   </Text>
                 </View>
                 <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
@@ -618,7 +632,7 @@ export function HomeScreen(): React.ReactElement {
                     TRIAL ENDED
                   </Text>
                   <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
-                    Subscribe to keep your private GLP-1 coach and progress reports.
+                    Logging stays free. Subscribe for coach, doctor reports, milestones, and alerts.
                   </Text>
                 </View>
                 <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>
@@ -629,14 +643,19 @@ export function HomeScreen(): React.ReactElement {
           </Pressable>
         )}
 
-        {/* ─── Living Biological Aura & Satiety Shield ────────── */}
-        <SatietyShieldHeader
-          drugName={db.profile.drug === 'OTHER' ? (db.profile.customDrugName || 'GLP-1') : db.profile.drug}
-          doseLabel={db.profile.currentDoseLabel || `${db.profile.currentDoseMg} mg`}
-          activeLevelMg={activeLevel.currentActiveMg}
-          nominalDoseMg={db.profile.currentDoseMg}
-          dayAfterShot={dayAfterShot}
-          onPress={openMedicationLevels}
+        {/* ─── Trough Day (free forever) ──────────────────────── */}
+        <TroughDayRing
+          state={troughDay}
+          onShare={() => setTroughShareOpen(true)}
+          onPress={
+            troughDay.phase === 'NO_DATA'
+              ? openShotLog
+              : troughDay.phase === 'OVERDUE' || troughDay.phase === 'PRE_SHOT'
+                ? openShotLog
+                : hasProAccess
+                  ? openMedicationLevels
+                  : undefined
+          }
         />
 
         {/* ─── 1-Tap Quick Action Micro-Bar ───────────────────────── */}
@@ -664,7 +683,7 @@ export function HomeScreen(): React.ReactElement {
               Your GLP-1 concierge is paused
             </Text>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
-              Subscribe to unlock 7-day cycle guidance, Shot Day rituals, symptom check-ins, and titration milestones.
+              Subscribe to unlock 7-day cycle guidance, Shot Day rituals, smart alerts, and titration milestones. Shot, food, and symptom logging stay free.
             </Text>
             <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
               Subscribe to unlock {'\u203a'}
@@ -673,6 +692,7 @@ export function HomeScreen(): React.ReactElement {
         )}
 
         {/* ─── Active medication level & half-life ────────────── */}
+        {hasProAccess ? (
         <Card
           style={{ marginBottom: theme.spacing.md }}
           onPress={openMedicationLevels}
@@ -741,8 +761,31 @@ export function HomeScreen(): React.ReactElement {
             View live curve & titration ›
           </Text>
         </Card>
+        ) : (
+          <Card
+            accent
+            style={{ marginBottom: theme.spacing.md }}
+            onPress={() => navigation.navigate('Paywall')}
+            accessibilityLabel="Estimated active level is a Pro insight. Subscribe to unlock."
+            accessibilityHint="Opens the subscription screen"
+          >
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+              ESTIMATED ACTIVE LEVEL
+            </Text>
+            <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+              Medication curves are paused
+            </Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+              Subscribe for estimated GLP-1 levels, peak/trough timing, and titration. Shot logging stays free.
+            </Text>
+            <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
+              Subscribe to unlock {'\u203a'}
+            </Text>
+          </Card>
+        )}
 
         {/* ─── Weekly progress insight ───────────────────────── */}
+        {hasProAccess ? (
         <Card
           style={{ marginBottom: theme.spacing.md }}
           onPress={openWeeklyProgress}
@@ -779,7 +822,28 @@ export function HomeScreen(): React.ReactElement {
             View details {'\u203a'}
           </Text>
         </Card>
-
+        ) : (
+          <Card
+            accent
+            style={{ marginBottom: theme.spacing.md }}
+            onPress={() => navigation.navigate('Paywall')}
+            accessibilityLabel="Weekly milestones are a Pro insight. Subscribe to unlock."
+            accessibilityHint="Opens the subscription screen"
+          >
+            <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+              WEEKLY MILESTONES
+            </Text>
+            <Text style={[theme.typography.heading, { color: theme.colors.text, marginTop: 4 }]}>
+              Progress insights are paused
+            </Text>
+            <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 6, lineHeight: 18 }]}>
+              Subscribe for weekly score, 8-week rhythm, and weight milestones. Shot, food, and symptom logging stay free.
+            </Text>
+            <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary, marginTop: 12 }]}>
+              Subscribe to unlock {'\u203a'}
+            </Text>
+          </Card>
+        )}
 
         {/* ─── Nutrition & Hydration Gauges ──────────────────── */}
         <Card
@@ -916,10 +980,6 @@ export function HomeScreen(): React.ReactElement {
         initialUnit={db.profile.weightUnit}
         onClose={() => setWeightSheetOpen(false)}
         onSave={(weight, unit, note) => {
-          if (!requireProAccess()) {
-            setWeightSheetOpen(false);
-            return;
-          }
           const nowIso = new Date().toISOString();
           updateDb((prev) => ({
             ...prev,
@@ -953,6 +1013,11 @@ export function HomeScreen(): React.ReactElement {
         visible={shareCardOpen}
         db={db}
         onClose={() => setShareCardOpen(false)}
+      />
+      <TroughDayShareCard
+        visible={troughShareOpen}
+        state={troughDay}
+        onClose={() => setTroughShareOpen(false)}
       />
       <SoftReviewPromptSheet
         visible={reviewPromptOpen}

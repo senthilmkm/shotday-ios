@@ -144,7 +144,7 @@ describe('hasAccess', () => {
     expect(hasAccess('PRO')).toBe(true);
   });
 
-  it('blocks NEW_USER and EXPIRED', () => {
+  it('blocks NEW_USER and EXPIRED from Pro extras (core logging stays free)', () => {
     expect(hasAccess('NEW_USER')).toBe(false);
     expect(hasAccess('EXPIRED')).toBe(false);
   });

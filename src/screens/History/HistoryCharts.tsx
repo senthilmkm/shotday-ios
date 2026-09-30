@@ -6,6 +6,8 @@ import Svg, { Circle, Line, Polyline, Rect, Text as SvgText } from 'react-native
 import { MedicationLevelChart } from '../../components/MedicationLevelChart';
 import { generateMedicationCurve } from '../../domain/medicationLevel';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
+import { Lock } from 'lucide-react-native';
+import { useProAccess } from '../../hooks/useProAccess';
 import { useTheme } from '../../theme/ThemeProvider';
 import { ZONE_SHORT_LABEL } from './timeline';
 import {
@@ -47,6 +49,7 @@ const SYMPTOM_AVG_WINDOW_DAYS = 28;
 export function HistoryCharts({ db }: HistoryChartsProps): React.ReactElement {
   const theme = useTheme();
   const navigation = useNavigation<Nav>();
+  const { hasProAccess, requireProAccess } = useProAccess();
   const today = useMemo(() => new Date(), []);
 
   // ─── Medication levels curve (30-day window) ────────────
@@ -148,7 +151,8 @@ export function HistoryCharts({ db }: HistoryChartsProps): React.ReactElement {
         />
       </View>
 
-      {/* ─── Chart 1: Active Medication Levels ───────────── */}
+      {/* ─── Chart 1: Active Medication Levels (Pro) ───────── */}
+      {hasProAccess ? (
       <ChartCard
         title="Active Medication Level (mg)"
         takeaway="Estimated blood levels over the last 30 days + 7-day forecast."
@@ -165,7 +169,9 @@ export function HistoryCharts({ db }: HistoryChartsProps): React.ReactElement {
           height={CHART_HEIGHT}
         />
         <Pressable
-          onPress={() => navigation.navigate('MedicationLevels')}
+          onPress={() => {
+            if (requireProAccess()) navigation.navigate('MedicationLevels');
+          }}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Open medication simulator and titration tools"
@@ -176,6 +182,29 @@ export function HistoryCharts({ db }: HistoryChartsProps): React.ReactElement {
           </Text>
         </Pressable>
       </ChartCard>
+      ) : (
+        <Pressable
+          onPress={() => {
+            requireProAccess();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Active medication level curves are a Pro insight. Tap to subscribe."
+        >
+          <ChartCard
+            title="Active Medication Level (mg)"
+            takeaway="Subscribe to see estimated blood levels, 7-day forecast, and titration tools. Shot history stays free."
+            emptyMessage={null}
+            theme={theme}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <Lock size={15} color={theme.colors.primary} style={{ marginRight: 6 }} />
+              <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
+                Subscribe to unlock medication level curves ›
+              </Text>
+            </View>
+          </ChartCard>
+        </Pressable>
+      )}
 
       {/* ─── Chart 2: Symptom trend ─────────────────────────── */}
       <ChartCard

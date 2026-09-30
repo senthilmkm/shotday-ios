@@ -48,6 +48,7 @@ import {
   TRIAL_DAYS,
   trialDaysRemaining,
 } from '../domain/entitlement';
+import { FREE_SHOT_LIMIT, isFreeShotLimitReached } from '../domain/proGating';
 import { proteinTargetGrams } from '../domain/protein';
 import {
   calculateActiveLevelAt,
@@ -868,7 +869,7 @@ describe('integration: subscription lifecycle', () => {
     ).toBe(false);
   });
 
-  it('TRIAL → EXPIRED at exactly day 14, blocking access', () => {
+  it('TRIAL → EXPIRED at exactly day 14, blocking Pro extras (not core logging)', () => {
     const start = new Date(2026, 5, 1);
     const db = applyOnboarding(freshDb(), { trialStartedAt: start.toISOString() });
 
@@ -1264,5 +1265,50 @@ describe('User Journey: Active GLP-1 Levels, Half-Life Curve & Titration Simulat
     db = { ...db, sideEffects: [zeroEntry!, ...db.sideEffects] };
     expect(db.sideEffects).toHaveLength(1);
   });
+
+  it('scenario 20: 3-shot free limit enforcement and subscription entitlement override', async () => {
+    let db = applyOnboarding(freshDb(), {
+      trialStartedAt: new Date('2025-01-01T00:00:00Z').toISOString(), // expired trial
+    });
+    const now = new Date('2026-08-30T12:00:00Z');
+    const ent = computeEntitlement(db.profile, now);
+    expect(ent).toBe('EXPIRED');
+
+    // Free user logs 1st shot
+    db = logInjection(db, 'BELLY_UL', new Date('2026-08-09T09:00:00Z'));
+    expect(db.injections).toHaveLength(1);
+    expect(isFreeShotLimitReached(db.injections.length, false)).toBe(false);
+
+    // Free user logs 2nd shot
+    db = logInjection(db, 'BELLY_UR', new Date('2026-08-16T09:00:00Z'));
+    expect(db.injections).toHaveLength(2);
+    expect(isFreeShotLimitReached(db.injections.length, false)).toBe(false);
+
+    // Free user logs 3rd shot (reaches max free limit)
+    db = logInjection(db, 'BELLY_LL', new Date('2026-08-23T09:00:00Z'));
+    expect(db.injections).toHaveLength(3);
+    expect(isFreeShotLimitReached(db.injections.length, false)).toBe(true);
+
+    // Attempting to check limit before 4th shot confirms limit is reached
+    const block4thShot = isFreeShotLimitReached(db.injections.length, false);
+    expect(block4thShot).toBe(true);
+
+    // User purchases Pro subscription (proUntil set in future)
+    db = {
+      ...db,
+      profile: {
+        ...db.profile,
+        proUntil: new Date('2027-08-30T12:00:00Z').toISOString(),
+      },
+    };
+    const proEnt = computeEntitlement(db.profile, now);
+    expect(proEnt).toBe('PRO');
+
+    // Pro user is unblocked to log 4th shot and beyond
+    expect(isFreeShotLimitReached(db.injections.length, true)).toBe(false);
+    db = logInjection(db, 'BELLY_LR', new Date('2026-08-30T09:00:00Z'));
+    expect(db.injections).toHaveLength(4);
+  });
 });
+
 

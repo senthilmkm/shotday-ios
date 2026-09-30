@@ -6,7 +6,9 @@ import { Button } from '../../components/Button';
 import { DateTimePickerSheet } from '../../components/DateTimePickerSheet';
 import { ShotCelebrationModal } from '../../components/ShotCelebrationModal';
 import { checkDoseSafety, type DoseSafety } from '../../domain/doseSafety';
+import { isFreeShotLimitReached } from '../../domain/proGating';
 import { hotZones, lastUsedZone, suggestNextZone } from '../../domain/rotation';
+import { useProAccess } from '../../hooks/useProAccess';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import { useTheme } from '../../theme/ThemeProvider';
 import type { Injection, InjectionZone } from '../../types/domain';
@@ -53,6 +55,7 @@ const MAX_BACKDATE_DAYS = 14;
 export function BodyDiagramScreen({ onLogged }: BodyDiagramScreenProps): React.ReactElement {
   const theme = useTheme();
   const { db, updateDb } = useShotdayDb();
+  const { hasProAccess, openPaywall } = useProAccess();
   const [pendingZone, setPendingZone] = useState<InjectionZone | null>(null);
   const [takenAt, setTakenAt] = useState<Date>(() => new Date());
   const [pickerOpen, setPickerOpen] = useState<boolean>(false);
@@ -170,6 +173,22 @@ export function BodyDiagramScreen({ onLogged }: BodyDiagramScreenProps): React.R
 
   const onLog = (): void => {
     if (!pendingZone) return;
+
+    if (isFreeShotLimitReached(db.injections.length, hasProAccess)) {
+      Alert.alert(
+        'Free limit reached',
+        "You've logged 3 free shots! Upgrade to Shotday Pro for unlimited shot logging and full insights.",
+        [
+          { text: 'Not now', style: 'cancel' },
+          {
+            text: 'View Shotday Pro',
+            onPress: openPaywall,
+          },
+        ],
+      );
+      return;
+    }
+
     const safety: DoseSafety = checkDoseSafety(db.injections, takenAt);
 
     if (safety.kind === 'OK') {

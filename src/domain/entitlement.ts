@@ -8,10 +8,12 @@
 //   trialStartedAt + 14d <= now       → EXPIRED
 //   trialStartedAt === null           → NEW_USER
 //
-// PRO grants full access regardless of trial status. EXPIRED locks the
-// experience behind the paywall (modal-on-launch in App.tsx). TRIAL is
-// the happy path with a "Trial ends in N days" banner once we're inside
-// the warning window.
+// PRO grants extras regardless of trial status. EXPIRED keeps core
+// logging free (Shot, Food, Symptoms, dose, refill, history, weight)
+// and gates Pro extras: Cycle Concierge, smart alerts, medication
+// levels, weekly progress / milestones, and doctor reports. TRIAL is
+// the happy path with a "Trial ends in N days" banner once we're
+// inside the warning window.
 
 import type { UserProfile } from '../types/domain';
 
@@ -59,7 +61,7 @@ export function trialDaysRemaining(profile: UserProfile, now: Date): number | nu
   return Math.ceil(msLeft / (1000 * 60 * 60 * 24));
 }
 
-/** Convenience: true when the user has full access (PRO or in trial). */
+/** True when Pro extras are unlocked (PRO or in trial). Core logging stays free. */
 export function hasAccess(state: EntitlementState): boolean {
   return state === 'PRO' || state === 'TRIAL';
 }

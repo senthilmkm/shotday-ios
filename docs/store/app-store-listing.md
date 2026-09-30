@@ -30,7 +30,7 @@ Weekly GLP-1 tracker, no cloud
 *(can be edited any time without re-submitting; great for launch / sales / holidays)*
 
 ```
-14-day free trial. Track injections, side effects, dose, protein, refills — all on device. No accounts, analytics, or ads. For Ozempic, Wegovy, Mounjaro, Zepbound.
+The log is free. 14-day Pro trial for coach, reports, alerts. Track shots, symptoms, dose, protein, refills on device.
 ```
 
 ## Keywords (100, comma-separated, no spaces after commas)
@@ -78,7 +78,7 @@ Full dark and light themes that follow iOS system settings, or pick one manually
 Shotday is a tracking tool, not medical advice. It's built from publicly available manufacturer guidance and standard nutrition science. Always consult your prescribing physician before starting, stopping, or changing any medication. In an emergency, call your local emergency number.
 
 ▸ SHOTDAY PRO
-A 14-day free trial unlocks everything. After that, Pro is $4.99/month or $29.99/year (auto-renewable subscription via your Apple ID). Cancel any time in your Apple ID Account Settings. Your data stays on your device whether or not you subscribe.
+The log is free. Shot, food, symptom, dose, refill, history, and weight tracking stay available after the trial. Optional Shotday Pro adds Cycle Concierge, doctor-ready reports, milestones, and smart alerts — $4.99/month or $29.99/year (auto-renewable via your Apple ID), with a 14-day free trial. Cancel any time in your Apple ID Account Settings. Your data stays on your device whether or not you subscribe.
 
 ————————
 
@@ -99,7 +99,7 @@ First release. Five focused features for your weekly GLP-1 routine:
 • Dose escalation ladder with eligibility tracking
 • Refill alarm based on doses logged
 
-Built private-by-design — no account, no cloud, no analytics. 14-day free trial included. Thanks for being an early user. If you spot anything broken, email senthil930@gmail.com.
+Built private-by-design — no account, no cloud, no analytics. The log is free; a 14-day Pro trial covers coach, reports, and alerts. Thanks for being an early user. If you spot anything broken, email senthil930@gmail.com.
 ```
 
 ---
@@ -142,13 +142,13 @@ Test account: not applicable (no account system).
 To test the subscription flow:
 1. Open the app and complete onboarding (any drug, any dose, any weight, any shot day).
 2. The 14-day trial starts automatically.
-3. Tap the gear icon (top-right of home) → Subscription → Subscribe to open the paywall.
+3. Tap Settings (bottom tab) → Subscription → Subscribe to open the paywall.
 4. Use a sandbox tester to purchase the monthly or yearly plan.
 
 To preview an expired-trial state without waiting 14 days:
 1. Open Settings → scroll to "Dev tools" (only visible in TestFlight builds with __DEV__ flag).
 2. Tap "Set trial: expired".
-3. Return to Home — the red banner appears and the paywall auto-presents.
+3. Return to Home — the red banner appears. Shot, Food, and Symptoms tabs still work. Coach, doctor reports, milestones, and smart alerts stay behind the paywall.
 
 The body-diagram screen (Injection logging) and the side-effect log are the two features that may benefit from VoiceOver review — every tappable injection zone has an accessibility label naming the body part.
 

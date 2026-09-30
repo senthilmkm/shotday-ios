@@ -19,6 +19,7 @@ interface SatietyShieldHeaderProps {
   nominalDoseMg: number;
   dayAfterShot: number | null;
   onPress: () => void;
+  locked?: boolean;
 }
 
 export function SatietyShieldHeader({
@@ -28,6 +29,7 @@ export function SatietyShieldHeader({
   nominalDoseMg,
   dayAfterShot,
   onPress,
+  locked = false,
 }: SatietyShieldHeaderProps): React.ReactElement {
   const theme = useTheme();
 
@@ -98,7 +100,11 @@ export function SatietyShieldHeader({
         onPress();
       }}
       accessibilityRole="button"
-      accessibilityLabel={`${phaseTitle}. Estimated active level: ${activeLevelMg} mg. Tap to view active half-life curve.`}
+      accessibilityLabel={
+        locked
+          ? `${phaseTitle}. Estimated active level is a Pro insight. Tap to subscribe.`
+          : `${phaseTitle}. Estimated active level: ${activeLevelMg} mg. Tap to view active half-life curve.`
+      }
       style={({ pressed }) => [
         styles.container,
         {
@@ -142,23 +148,28 @@ export function SatietyShieldHeader({
         <View style={styles.statRow}>
           <View>
             <Text style={[theme.typography.hero, { color: theme.colors.text, fontSize: 26, lineHeight: 30 }]}>
-              {activeLevelMg} <Text style={{ fontSize: 15, fontWeight: '500', color: theme.colors.textMuted }}>mg</Text>
+              {locked ? 'Pro' : activeLevelMg}{' '}
+              <Text style={{ fontSize: 15, fontWeight: '500', color: theme.colors.textMuted }}>
+                {locked ? 'insight' : 'mg'}
+              </Text>
             </Text>
             <Text style={[theme.typography.caption, { color: theme.colors.textMuted, fontSize: 11 }]}>
-              Estimated Active in System · {drugName}
+              {locked
+                ? 'Subscribe to see estimated active level'
+                : `Estimated Active in System · ${drugName}`}
             </Text>
           </View>
 
           {/* Satiety Gauge Meter */}
           <View style={styles.gaugeBlock}>
             <Text style={[theme.typography.captionMedium, { color: accentColor, fontSize: 12, textAlign: 'right' }]}>
-              {rawPct}% Active Shield
+              {locked ? 'Pro' : `${rawPct}% Active Shield`}
             </Text>
             <View style={[styles.progressBarTrack, { backgroundColor: theme.colors.surfaceMuted }]}>
               <View
                 style={[
                   styles.progressBarFill,
-                  { width: `${rawPct}%`, backgroundColor: accentColor },
+                  { width: `${locked ? 0 : rawPct}%`, backgroundColor: accentColor },
                 ]}
               />
             </View>

@@ -3,267 +3,855 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Shotday — Private GLP-1 Tracker for iOS</title>
-<meta name="description" content="Shotday is a private, on-device tracker for people on GLP-1 medications like Ozempic, Wegovy, Mounjaro, and Zepbound. No account, no cloud, no analytics." />
+<title>Shotday — Private GLP-1 tracker for iPhone</title>
+<meta name="description" content="The log is free. Track Ozempic, Wegovy, Mounjaro, and Zepbound shots, sites, symptoms, protein, and refills on your iPhone. No account. No cloud. No analytics." />
+<meta name="theme-color" content="#0A3D38" />
+<meta name="apple-itunes-app" content="app-id=6775780888" />
 <meta name="robots" content="index, follow" />
-<meta property="og:title" content="Shotday — Private GLP-1 Tracker" />
-<meta property="og:description" content="Track injections, side effects, dose escalation, protein, and refills. All on your device." />
+<meta property="og:title" content="Shotday — Your GLP-1 routine. Zero cloud." />
+<meta property="og:description" content="The log is free. Forever. Shots, sites, symptoms, protein, and refills stay on this iPhone." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://www.spinwheelgo.com/shotday/" />
+<meta property="og:image" content="https://www.spinwheelgo.com/shotday/icon.png" />
+<meta name="twitter:card" content="summary" />
+<link rel="icon" href="/shotday/icon.png" type="image/png" />
+<link rel="apple-touch-icon" href="/shotday/icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Shotday",
+  "operatingSystem": "iOS",
+  "applicationCategory": "HealthApplication",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "description": "Private on-device GLP-1 tracker for Ozempic, Wegovy, Mounjaro, and Zepbound.",
+  "url": "https://apps.apple.com/us/app/shotday/id6775780888"
+}
+</script>
 <style>
   :root {
-    --bg: #ffffff;
-    --text: #0f172a;
-    --muted: #475569;
-    --primary: #0f766e;
-    --primary-soft: #ccfbf1;
-    --border: #e2e8f0;
-    --card: #f8fafc;
+    --ink: #061A18;
+    --pine: #0A3D38;
+    --teal: #0E9F8E;
+    --teal-deep: #0B8276;
+    --foam: #D8F3EE;
+    --paper: #F4EFE6;
+    --sand: #E8E0D2;
+    --cream: #FBF8F2;
+    --muted: #5C6B68;
+    --line: rgba(10, 61, 56, 0.12);
+    --white: #FFFcf7;
+    --amber: #C9842A;
+    --store: #061A18;
+    --radius: 22px;
+    --shadow: 0 28px 60px rgba(6, 26, 24, 0.18);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b1118;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --primary: #2dd4bf;
-      --primary-soft: #134e4a;
-      --border: #1e293b;
-      --card: #111927;
-    }
-  }
-  html { box-sizing: border-box; }
-  *, *:before, *:after { box-sizing: inherit; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
+    color: var(--ink);
+    background: var(--paper);
+    font-family: Outfit, "Segoe UI", sans-serif;
     font-size: 17px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
-  main {
-    max-width: 720px;
-    padding: 48px 24px 96px;
+  img { max-width: 100%; display: block; }
+  a { color: var(--teal-deep); }
+  h1, h2, h3, .serif { font-family: Fraunces, Georgia, serif; font-optical-sizing: auto; }
+  .wrap {
+    width: min(1120px, calc(100% - 40px));
     margin: 0 auto;
   }
-  header.hero {
-    text-align: center;
-    padding: 16px 0 32px;
+
+  /* Nav */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: saturate(1.2) blur(16px);
+    background: rgba(244, 239, 230, 0.86);
+    border-bottom: 1px solid var(--line);
   }
-  .badge {
-    display: inline-block;
-    background: var(--primary-soft);
-    color: var(--primary);
-    font-size: 13px;
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    gap: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--ink);
     font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 999px;
-    margin-bottom: 16px;
-    letter-spacing: 0.02em;
-  }
-  h1 {
-    font-size: 44px;
-    line-height: 1.1;
-    margin: 0 0 12px;
     letter-spacing: -0.03em;
+    font-size: 18px;
   }
-  .tagline {
-    font-size: 20px;
-    color: var(--muted);
-    margin: 0 0 24px;
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: block;
+    flex-shrink: 0;
   }
-  h2 {
-    font-size: 22px;
-    margin: 40px 0 12px;
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .nav-links a { color: var(--pine); text-decoration: none; }
+  .nav-links a:hover { color: var(--teal-deep); }
+  .btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border-radius: 999px;
+    font-weight: 600;
     letter-spacing: -0.01em;
   }
-  h3 {
-    font-size: 17px;
-    margin: 24px 0 6px;
-    letter-spacing: -0.005em;
+  .btn-store {
+    background: var(--store);
+    color: var(--cream);
+    padding: 10px 18px 11px;
+    min-width: 168px;
   }
-  p { margin: 0 0 14px; }
-  ul { padding-left: 22px; margin: 0 0 14px; }
-  li { margin-bottom: 6px; }
-  a { color: var(--primary); }
-  hr { border: 0; border-top: 1px solid var(--border); margin: 40px 0; }
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 24px;
-    margin: 16px 0;
+  .btn-store small {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.7;
   }
-  .card h3 { margin-top: 0; }
-  .card p:last-child { margin-bottom: 0; }
-  .features {
-    list-style: none;
-    padding: 0;
-    margin: 24px 0;
+  .btn-store span { font-size: 15px; line-height: 1.15; }
+  .btn-ghost {
+    color: var(--cream);
+    border: 1px solid rgba(255,252,247,0.28);
+    padding: 12px 20px;
+    font-size: 15px;
   }
-  .features li {
-    padding: 14px 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0;
+  .btn-light {
+    background: var(--cream);
+    color: var(--ink);
+    padding: 14px 22px;
+    font-size: 15px;
   }
-  .features li:last-child { border-bottom: 0; }
-  .features strong { color: var(--text); }
-  footer {
-    margin-top: 48px;
-    font-size: 14px;
-    color: var(--muted);
-    text-align: center;
+
+  /* Hero */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 56px 0 24px;
   }
-  footer a { color: var(--muted); margin: 0 8px; }
-  footer a:hover { color: var(--primary); }
-  .contact-button {
-    display: inline-block;
-    background: var(--primary);
-    color: #ffffff;
-    padding: 12px 24px;
-    border-radius: 8px;
-    text-decoration: none;
+  .hero::before {
+    content: "";
+    position: absolute;
+    width: 720px;
+    height: 720px;
+    right: -180px;
+    top: -220px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle, transparent 42%, rgba(14,159,142,0.10) 43%, rgba(14,159,142,0.10) 52%, transparent 53%),
+      radial-gradient(circle, transparent 62%, rgba(14,159,142,0.08) 63%, rgba(14,159,142,0.08) 72%, transparent 73%);
+    pointer-events: none;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 56px;
+    align-items: center;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--foam);
+    color: var(--pine);
+    font-size: 12px;
     font-weight: 600;
-    margin-top: 8px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border-radius: 999px;
+    margin-bottom: 18px;
   }
-  @media (prefers-color-scheme: dark) {
-    .contact-button { color: #0b1118; }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
   }
-  code {
-    background: var(--border);
-    padding: 2px 6px;
-    border-radius: 4px;
+  h1 {
+    font-size: clamp(42px, 6vw, 72px);
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+    margin: 0 0 18px;
+    font-weight: 600;
+  }
+  h1 em {
+    font-style: italic;
+    color: var(--teal-deep);
+    font-weight: 500;
+  }
+  .lede {
+    font-size: 20px;
+    color: var(--muted);
+    max-width: 34em;
+    margin: 0 0 28px;
+  }
+  .hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+  .hero-note {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pill {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--pine);
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 12px;
+  }
+
+  /* Phone */
+  .stage { display: flex; justify-content: center; }
+  .phone {
+    width: 290px;
+    background: #0C2B28;
+    border-radius: 42px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+    transform: rotate(3deg);
+  }
+  .phone-screen {
+    background: #F7F4EE;
+    border-radius: 32px;
+    overflow: hidden;
+    min-height: 560px;
+    position: relative;
+  }
+  .notch {
+    width: 108px;
+    height: 22px;
+    background: #0C2B28;
+    border-radius: 0 0 16px 16px;
+    margin: 0 auto 8px;
+  }
+  .app {
+    padding: 8px 16px 20px;
+  }
+  .app-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .app-top strong { font-size: 13px; letter-spacing: 0.14em; color: var(--teal-deep); }
+  .app-top span { font-size: 12px; color: var(--muted); }
+  .shield {
+    background: #0E9F8E;
+    color: white;
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 10px;
+  }
+  .shield small { display: block; font-size: 10px; letter-spacing: 0.14em; opacity: 0.8; }
+  .shield b { display: block; font-family: Fraunces, serif; font-size: 22px; margin: 4px 0 2px; font-weight: 600; }
+  .shield p { margin: 0; font-size: 12px; opacity: 0.9; }
+  .mini-card {
+    background: white;
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(10,61,56,0.08);
+  }
+  .mini-card small { color: var(--teal-deep); font-size: 10px; letter-spacing: 0.12em; font-weight: 600; }
+  .mini-card b { display: block; font-size: 15px; margin: 4px 0 2px; }
+  .mini-card p { margin: 0; font-size: 12px; color: var(--muted); }
+  .chips { display: flex; gap: 6px; margin-top: 10px; }
+  .chip {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--foam);
+    color: var(--pine);
+    border-radius: 999px;
+    padding: 8px 0;
+  }
+  .body-map {
+    height: 92px;
+    display: grid;
+    place-items: center;
+  }
+
+  /* Ticker */
+  .ticker {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: var(--cream);
+    overflow: hidden;
+    padding: 14px 0;
+    margin: 36px 0 0;
+  }
+  .ticker-track {
+    display: flex;
+    gap: 40px;
+    width: max-content;
+    animation: marquee 28s linear infinite;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--pine);
+  }
+  .ticker-track span { opacity: 0.55; }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* Sections */
+  section { padding: 88px 0; }
+  .kicker {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--teal-deep);
+    margin: 0 0 10px;
+  }
+  h2 {
+    font-size: clamp(32px, 4.4vw, 48px);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    margin: 0 0 14px;
+    font-weight: 600;
+  }
+  .section-lead {
+    color: var(--muted);
+    max-width: 38em;
+    margin: 0 0 40px;
+    font-size: 18px;
+  }
+
+  .free-band {
+    background: var(--pine);
+    color: var(--cream);
+    text-align: center;
+    padding: 72px 20px;
+  }
+  .free-band h2 { color: var(--cream); max-width: 14em; margin: 0 auto 12px; }
+  .free-band p { color: rgba(251,248,242,0.78); margin: 0 auto; max-width: 36em; }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .feature {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 28px;
+    min-height: 220px;
+  }
+  .feature:first-child { grid-column: 1 / -1; display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 24px; align-items: center; }
+  .num {
+    font-family: Fraunces, serif;
+    font-size: 13px;
+    color: var(--teal-deep);
+    letter-spacing: 0.12em;
+    margin-bottom: 12px;
+  }
+  .feature h3 {
+    font-size: 26px;
+    margin: 0 0 10px;
+    letter-spacing: -0.03em;
+    font-weight: 600;
+  }
+  .feature p { margin: 0; color: var(--muted); }
+
+  .privacy {
+    background:
+      radial-gradient(900px 400px at 80% 0%, rgba(14,159,142,0.18), transparent 50%),
+      var(--ink);
+    color: var(--cream);
+  }
+  .privacy h2 { color: var(--cream); }
+  .privacy .section-lead { color: rgba(251,248,242,0.7); }
+  .privacy-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .privacy-card {
+    background: rgba(255,252,247,0.05);
+    border: 1px solid rgba(255,252,247,0.1);
+    border-radius: 18px;
+    padding: 22px;
+  }
+  .privacy-card h3 { margin: 0 0 8px; font-size: 20px; }
+  .privacy-card p { margin: 0; color: rgba(251,248,242,0.68); font-size: 15px; }
+
+  .pro-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 28px;
+    align-items: stretch;
+  }
+  .pro-card {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 28px;
+    padding: 32px;
+  }
+  .price {
+    font-family: Fraunces, serif;
+    font-size: 42px;
+    letter-spacing: -0.04em;
+    margin: 8px 0 4px;
+  }
+  .price span { font-size: 18px; color: var(--muted); }
+  .checklist { list-style: none; padding: 0; margin: 18px 0 0; }
+  .checklist li {
+    padding: 10px 0 10px 28px;
+    position: relative;
+    border-bottom: 1px solid var(--line);
+  }
+  .checklist li:last-child { border-bottom: 0; }
+  .pro-card-dark .checklist li { border-color: rgba(255,252,247,0.12); }
+  .checklist li::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--teal);
+    position: absolute;
+    left: 0;
+    top: 16px;
+  }
+
+  .faq {
+    display: grid;
+    gap: 10px;
+    max-width: 760px;
+  }
+  details {
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 0 20px;
+  }
+  summary {
+    cursor: pointer;
+    list-style: none;
+    font-weight: 600;
+    padding: 18px 0;
+    font-size: 16px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  details p {
+    margin: 0 0 18px;
+    color: var(--muted);
+  }
+
+  .support {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 28px;
+    background: var(--sand);
+    border-radius: 28px;
+    padding: 36px;
+  }
+  .support h2 { font-size: 36px; }
+
+  .close {
+    text-align: center;
+    padding: 96px 20px 80px;
+    background:
+      radial-gradient(600px 280px at 50% 0%, rgba(14,159,142,0.16), transparent 60%),
+      var(--paper);
+  }
+  .close h2 { max-width: 14em; margin: 0 auto 12px; }
+  .close p { color: var(--muted); margin: 0 auto 28px; max-width: 34em; }
+  .close .btn-store { min-width: 200px; padding: 14px 24px 15px; }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 28px 0 40px;
+    color: var(--muted);
     font-size: 14px;
-    color: var(--text);
+  }
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  footer a { color: var(--pine); text-decoration: none; }
+  footer a:hover { color: var(--teal-deep); }
+  .legal { font-size: 12px; color: var(--muted); margin-top: 18px; max-width: 70em; }
+  code {
+    font-size: 12px;
+    background: var(--sand);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 880px) {
+    .nav-links a:not(.btn) { display: none; }
+    .hero-grid, .feature:first-child, .privacy-grid, .pro-grid, .support {
+      grid-template-columns: 1fr;
+    }
+    .privacy-grid { grid-template-columns: 1fr 1fr; }
+    .features { grid-template-columns: 1fr; }
+    .phone { transform: none; width: 260px; }
+    section { padding: 64px 0; }
+    .hero { padding-top: 32px; }
+  }
+  @media (max-width: 560px) {
+    .wrap { width: calc(100% - 28px); }
+    .privacy-grid { grid-template-columns: 1fr; }
+    .support { padding: 24px; }
+    h1 { font-size: 40px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ticker-track { animation: none; }
+    html { scroll-behavior: auto; }
   }
 </style>
 </head>
 <body>
-<main>
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/shotday/">
+        <svg class="brand-mark" viewBox="0 0 36 36" aria-hidden="true">
+          <defs>
+            <linearGradient id="shotday-mark" x1="18" y1="0" x2="18" y2="36" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#0B8276"/>
+              <stop offset="1" stop-color="#12B5A2"/>
+            </linearGradient>
+          </defs>
+          <rect width="36" height="36" rx="10" fill="url(#shotday-mark)"/>
+          <circle cx="18" cy="18" r="12.5" fill="none" stroke="#fff" stroke-width="1.7"/>
+          <circle cx="18" cy="18" r="8.2" fill="none" stroke="#fff" stroke-width="1.7"/>
+          <circle cx="18" cy="18" r="3.9" fill="none" stroke="#fff" stroke-width="1.7"/>
+          <circle cx="18" cy="18" r="1.7" fill="#fff"/>
+        </svg>
+        Shotday
+      </a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#pro">Pro</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn btn-store" href="https://apps.apple.com/us/app/shotday/id6775780888">
+          <small>Download on the</small>
+          <span>App Store</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
   <header class="hero">
-    <span class="badge">iOS · Private by design</span>
-    <h1>Shotday</h1>
-    <p class="tagline">A weekly GLP-1 tracker that lives on your phone — and nowhere else.</p>
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow"><span class="dot"></span> iPhone · On-device · No cloud</div>
+        <h1>Your weekly shot.<br /><em>Nowhere else.</em></h1>
+        <p class="lede">
+          Shotday is the private GLP-1 companion for Ozempic, Wegovy, Mounjaro, and Zepbound.
+          Sites, symptoms, protein, dose, and refills — logged on this iPhone, never uploaded.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-store" href="https://apps.apple.com/us/app/shotday/id6775780888">
+            <small>Download on the</small>
+            <span>App Store</span>
+          </a>
+          <span class="hero-note">The log is free. Forever. No account to create.</span>
+        </div>
+        <div class="pills">
+          <span class="pill">Ozempic</span>
+          <span class="pill">Wegovy</span>
+          <span class="pill">Mounjaro</span>
+          <span class="pill">Zepbound</span>
+          <span class="pill">Compounded</span>
+        </div>
+      </div>
+      <div class="stage" aria-hidden="true">
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="notch"></div>
+            <div class="app">
+              <div class="app-top">
+                <strong>SHOTDAY</strong>
+                <span>Wed · shot day</span>
+              </div>
+              <div class="shield">
+                <small>Peak satiety shield</small>
+                <b>2.1 mg active</b>
+                <p>Wegovy 2.4 mg · Day 1 after shot</p>
+              </div>
+              <div class="mini-card">
+                <small>Cycle concierge</small>
+                <b>Log today’s site</b>
+                <p>Left abdomen is fresh. Last week’s zone is greyed out.</p>
+                <div class="chips">
+                  <div class="chip">+8 oz</div>
+                  <div class="chip">+25 g</div>
+                  <div class="chip">Feel</div>
+                </div>
+              </div>
+              <div class="mini-card">
+                <small>Site rotation</small>
+                <div class="body-map">
+                  <svg width="70" height="88" viewBox="0 0 70 88" fill="none">
+                    <ellipse cx="35" cy="10" rx="8" ry="9" stroke="#0A3D38" stroke-width="1.6"/>
+                    <path d="M22 22c0-6 26-6 26 0v18c0 8-4 12-13 12s-13-4-13-12V22z" stroke="#0A3D38" stroke-width="1.6"/>
+                    <path d="M22 28c-10 4-14 12-14 22M48 28c10 4 14 12 14 22" stroke="#0A3D38" stroke-width="1.6"/>
+                    <path d="M28 52v28M42 52v28" stroke="#0A3D38" stroke-width="1.6"/>
+                    <circle cx="24" cy="34" r="4" fill="#0E9F8E"/>
+                    <circle cx="46" cy="34" r="3.2" stroke="#94A3B8" stroke-width="1.4"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ticker">
+      <div class="ticker-track">
+        <span>No account</span><span>No cloud</span><span>No analytics</span><span>No ads</span>
+        <span>On-device</span><span>The log is free</span><span>Ozempic</span><span>Wegovy</span>
+        <span>Mounjaro</span><span>Zepbound</span>
+        <span>No account</span><span>No cloud</span><span>No analytics</span><span>No ads</span>
+        <span>On-device</span><span>The log is free</span><span>Ozempic</span><span>Wegovy</span>
+        <span>Mounjaro</span><span>Zepbound</span>
+      </div>
+    </div>
   </header>
 
-  <p>
-    Shotday helps people on Ozempic, Wegovy, Mounjaro, and Zepbound stay on top of the five
-    things that actually matter on a weekly shot routine: injection sites, side effects,
-    dose escalation, protein intake, and refills. There is no account system, no cloud,
-    and no analytics. Your data is written to your device and never leaves it.
-  </p>
+  <div class="free-band">
+    <p class="kicker" style="color:#9EE4D8">Honest pricing</p>
+    <h2>The log is free. Forever.</h2>
+    <p>Shots, food, symptoms, dose, refill, history, and weight stay available after the trial. Other GLP-1 apps lock the tracker. Shotday does not.</p>
+  </div>
 
-  <h2>What it does</h2>
-  <ul class="features">
-    <li><strong>Rotate injection sites.</strong> A stylized body diagram suggests next week's site so you don't bruise the same spot twice.</li>
-    <li><strong>20-second side-effect log.</strong> Rate nausea, fatigue, constipation, and appetite on a 1–5 scale. Add custom symptoms.</li>
-    <li><strong>Protein-first food log.</strong> A daily protein target with one-tap presets — yogurt, eggs, chicken, whey, salmon, tofu.</li>
-    <li><strong>Dose escalation ladder.</strong> Standard semaglutide and tirzepatide ladders built in, with eligibility tracking.</li>
-    <li><strong>Refill alarm.</strong> Counts down doses per pen and warns you 7 days before you'd run out.</li>
-  </ul>
+  <section id="features">
+    <div class="wrap">
+      <p class="kicker">The weekly five</p>
+      <h2>Built for the routine.<br />Nothing else.</h2>
+      <p class="section-lead">Five things actually matter on a weekly shot. Shotday is designed around those — not a calorie diary, not a social feed, not another account wall.</p>
+      <div class="features">
+        <article class="feature">
+          <div>
+            <div class="num">01 — Rotate</div>
+            <h3>Tap a body. Never bruise the same spot twice.</h3>
+            <p>A stylized map suggests next week’s site. Last week is greyed out. The recommended zone pulses. No menus, no scrolling through a list of body parts.</p>
+          </div>
+          <div class="body-map">
+            <svg width="90" height="120" viewBox="0 0 70 88" fill="none" aria-hidden="true">
+              <ellipse cx="35" cy="10" rx="8" ry="9" stroke="#0A3D38" stroke-width="1.6"/>
+              <path d="M22 22c0-6 26-6 26 0v18c0 8-4 12-13 12s-13-4-13-12V22z" stroke="#0A3D38" stroke-width="1.6"/>
+              <path d="M22 28c-10 4-14 12-14 22M48 28c10 4 14 12 14 22" stroke="#0A3D38" stroke-width="1.6"/>
+              <path d="M28 52v28M42 52v28" stroke="#0A3D38" stroke-width="1.6"/>
+              <circle cx="24" cy="34" r="5" fill="#0E9F8E"/>
+            </svg>
+          </div>
+        </article>
+        <article class="feature">
+          <div class="num">02 — Feel</div>
+          <h3>A 20-second check-in.</h3>
+          <p>The day after your shot, rate nausea, fatigue, constipation, and appetite. Tap chips for sulfur burps, heartburn, headache. Done.</p>
+        </article>
+        <article class="feature">
+          <div class="num">03 — Protein</div>
+          <h3>Protect muscle while appetite disappears.</h3>
+          <p>A daily target from your weight. One-tap tiles for yogurt, eggs, chicken, whey, salmon, tofu. No calories. No guilt.</p>
+        </article>
+        <article class="feature">
+          <div class="num">04 — Dose</div>
+          <h3>The ladder, already in the app.</h3>
+          <p>Standard semaglutide and tirzepatide rungs. See when you’re eligible to bump, step down, or log a compounded dose.</p>
+        </article>
+        <article class="feature">
+          <div class="num">05 — Refill</div>
+          <h3>Seven days before you’d run out.</h3>
+          <p>Tell Shotday how many doses the pen holds. It counts down each shot and warns you early enough to actually call the pharmacy.</p>
+        </article>
+      </div>
+    </div>
+  </section>
 
-  <h2 id="support">Support</h2>
-  <p>
-    The fastest way to get help is by email. We monitor the inbox during US Pacific business
-    hours and reply within one business day.
-  </p>
-  <p>
-    <a class="contact-button" href="mailto:senthil930@gmail.com?subject=Shotday%20support">
-      Email senthil930@gmail.com
+  <section class="privacy" id="privacy">
+    <div class="wrap">
+      <p class="kicker">Private by design</p>
+      <h2>There is no server<br />to send it to.</h2>
+      <p class="section-lead">Most health apps ask for an email before they help you. Shotday never sees your name, your dose, or your weight. If you delete the app, the data is gone. That’s the whole story.</p>
+      <div class="privacy-grid">
+        <div class="privacy-card">
+          <h3>No account</h3>
+          <p>No sign-up, no password, no “verify your email to log a shot.”</p>
+        </div>
+        <div class="privacy-card">
+          <h3>No cloud</h3>
+          <p>Written to this iPhone’s encrypted sandbox. Nothing is uploaded anywhere.</p>
+        </div>
+        <div class="privacy-card">
+          <h3>No analytics</h3>
+          <p>We don’t track you. We don’t have ads. We don’t sell a profile of your health.</p>
+        </div>
+        <div class="privacy-card">
+          <h3>No lock-in</h3>
+          <p>Your log stays usable whether or not you subscribe. Export lives in Settings.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pro">
+    <div class="wrap">
+      <p class="kicker">Optional Shotday Pro</p>
+      <h2>Pay for insight,<br />not for logging.</h2>
+      <p class="section-lead">A 14-day trial of coach, reports, milestones, and alerts. After that, keep tracking for free — or keep Pro if the extras earn their place.</p>
+      <div class="pro-grid">
+        <div class="pro-card">
+          <div class="num">Always free</div>
+          <h3 class="serif" style="font-size:28px;margin:0 0 8px">The tracker</h3>
+          <ul class="checklist">
+            <li>Injection logging and site rotation</li>
+            <li>Symptom check-ins</li>
+            <li>Protein and water</li>
+            <li>Dose ladder and refill countdown</li>
+            <li>History, calendar, and weight</li>
+          </ul>
+        </div>
+        <div class="pro-card pro-card-dark" style="background:var(--pine);color:var(--cream);border-color:transparent">
+          <div class="num" style="color:#9EE4D8">Shotday Pro</div>
+          <div class="price">$4.99 <span>/ month</span></div>
+          <p style="margin:0;color:rgba(251,248,242,0.7)">or $29.99 / year · 14-day trial · cancel in Apple ID settings</p>
+          <ul class="checklist">
+            <li>Cycle Concierge — what to log next</li>
+            <li>Smart alerts</li>
+            <li>Estimated medication levels</li>
+            <li>Weekly milestones</li>
+            <li>Doctor-ready report</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <p class="kicker">Questions</p>
+      <h2>Straight answers.</h2>
+      <div class="faq">
+        <details open>
+          <summary>Is Shotday free?</summary>
+          <p>Yes. Shot, food, symptom, dose, refill, history, and weight tracking stay free. Shotday Pro is optional: 14-day trial, then $4.99/month or $29.99/year for concierge, reports, milestones, and alerts.</p>
+        </details>
+        <details>
+          <summary>Where is my data stored?</summary>
+          <p>Locally, on your iPhone, in the app’s encrypted sandbox. There is no Shotday server. Nothing is uploaded. If you delete the app, the data is gone.</p>
+        </details>
+        <details>
+          <summary>How do I cancel a subscription?</summary>
+          <p>iOS Settings → your name → Subscriptions → Shotday → Cancel. Or inside Shotday: Settings tab → Subscription → Manage subscription. Apple handles payment. We never see your card.</p>
+        </details>
+        <details>
+          <summary>I switched phones. Can you restore my log?</summary>
+          <p>We can’t — we don’t have a copy. Migrate with an encrypted iCloud or Finder backup of the old phone, which restores local storage. An on-device export is in Settings today.</p>
+        </details>
+        <details>
+          <summary>I’m not on Ozempic / Wegovy / Mounjaro / Zepbound.</summary>
+          <p>Enter a custom drug name and dose. The dose ladder is built for semaglutide and tirzepatide; logging, symptoms, protein, and refills still work for other GLP-1s.</p>
+        </details>
+        <details>
+          <summary>Does Shotday give medical advice?</summary>
+          <p>No. It is a tracking tool, not a medical device. Always consult your prescribing physician before starting, stopping, or changing any medication. In an emergency, call your local emergency number.</p>
+        </details>
+        <details>
+          <summary>How do I get a refund?</summary>
+          <p>Refunds are handled by Apple. Visit <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a>, find the Shotday charge, and tap Request a Refund.</p>
+        </details>
+        <details>
+          <summary>Notifications aren’t showing up.</summary>
+          <p>iOS Settings → Notifications → Shotday. Turn on Allow Notifications, Lock Screen, Notification Center, and Banners. Check Focus modes if alerts are silenced.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="support" id="support">
+        <div>
+          <p class="kicker">Support</p>
+          <h2>A real person,<br />not a chatbot.</h2>
+          <p style="color:var(--muted);margin:0 0 8px">US Pacific business hours. We reply within one business day. Include iOS version, iPhone model, and what you were doing.</p>
+        </div>
+        <div style="display:flex;align-items:center">
+          <a class="btn btn-store" href="mailto:senthil930@gmail.com?subject=Shotday%20support">
+            <small>Email</small>
+            <span>senthil930@gmail.com</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="close">
+    <p class="kicker">On the App Store</p>
+    <h2>Start this week’s shot<br />on a quieter app.</h2>
+    <p>No account. Forty-five seconds of setup. Your data stays on the phone you already carry.</p>
+    <a class="btn btn-store" href="https://apps.apple.com/us/app/shotday/id6775780888">
+      <small>Download on the</small>
+      <span>App Store</span>
     </a>
-  </p>
-  <p style="font-size: 14px; color: var(--muted);">
-    When reporting a bug, please include your iOS version, your iPhone model, and a short
-    description of what you were doing. Screenshots help a lot.
-  </p>
-
-  <h2>Frequently asked</h2>
-
-  <div class="card">
-    <h3>Where is my data stored?</h3>
-    <p>
-      Locally, on your iPhone, in the app's encrypted sandbox via AsyncStorage. There is no
-      Shotday server. Nothing is uploaded anywhere. If you delete the app, the data is gone.
-    </p>
   </div>
-
-  <div class="card">
-    <h3>How do I cancel my subscription?</h3>
-    <p>
-      Open the iOS Settings app, tap your name at the top, then <em>Subscriptions</em>, then
-      Shotday, then Cancel. You can also cancel directly inside Shotday: tap the gear icon →
-      Subscription → Manage subscription. Apple handles the cancellation; we never see your
-      payment details.
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>How do I get a refund?</h3>
-    <p>
-      Refunds are handled by Apple. Visit
-      <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a>, sign in with
-      your Apple ID, find the Shotday charge, and tap "Request a Refund."
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>I lost my data when I switched phones. Can you restore it?</h3>
-    <p>
-      We can't — your data only lives on the original device, and we don't have a server
-      copy. To migrate next time, set up your new iPhone using an encrypted iCloud or
-      iTunes/Finder backup of the old phone, which restores the app's local storage along
-      with everything else. We're working on an optional, encrypted, on-device export for
-      a future release.
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>Does Shotday give medical advice?</h3>
-    <p>
-      No. Shotday is a tracking tool, not a medical device. Always consult your prescribing
-      physician before starting, stopping, or changing any medication. In an emergency, call
-      your local emergency number.
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>I'm not on Ozempic / Wegovy / Mounjaro / Zepbound. Can I use Shotday?</h3>
-    <p>
-      Yes — you can enter a custom drug name and dose. The dose-escalation ladder is built
-      around semaglutide and tirzepatide, so other medications won't get the ladder feature,
-      but injection logging, side-effect tracking, protein, and refills all still work.
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>Notifications aren't showing up.</h3>
-    <p>
-      Open iOS Settings → Notifications → Shotday, and confirm that <em>Allow Notifications</em>
-      is on and that <em>Lock Screen</em>, <em>Notification Center</em>, and <em>Banners</em>
-      are enabled. If notifications are silenced during certain hours, check Focus modes and
-      Do Not Disturb settings.
-    </p>
-  </div>
-
-  <hr />
-
-  <h2>Legal</h2>
-  <p>
-    Read the
-    <a href="./privacy.html">Privacy Policy</a> and
-    <a href="./terms.html">Terms of Use</a>. Apple's
-    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/">Standard EULA</a>
-    also applies as a baseline.
-  </p>
 
   <footer>
-    <p>
-      <a href="./privacy.html">Privacy</a> ·
-      <a href="./terms.html">Terms</a> ·
-      <a href="mailto:senthil930@gmail.com">Contact</a>
-    </p>
-    <p>© 2026 Senthil. Bundle identifier: <code>com.senthil.shotday</code>.</p>
+    <div class="wrap">
+      <div class="foot">
+        <span>© 2026 Shotday</span>
+        <span>
+          <a href="./privacy.html">Privacy</a> ·
+          <a href="./terms.html">Terms</a> ·
+          <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/">Apple EULA</a> ·
+          <a href="mailto:senthil930@gmail.com">Contact</a>
+        </span>
+      </div>
+      <p class="legal">
+        Shotday is a tracking tool, not medical advice. Always follow your prescriber.
+        Bundle identifier <code>com.senthil.shotday</code>.
+        Shotday Pro is an auto-renewable subscription via Apple ID.
+      </p>
+    </div>
   </footer>
-</main>
 </body>
 </html>

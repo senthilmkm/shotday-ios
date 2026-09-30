@@ -141,17 +141,12 @@ export function SettingsScreen(): React.ReactElement {
   };
 
   const openWeightEditor = (): void => {
-    if (!requireProAccess()) return;
     setDraftWeight(profile.weight > 0 ? String(profile.weight) : '');
     setDraftUnit(profile.weightUnit);
     setWeightSheetOpen(true);
   };
 
   const onSaveWeight = (): void => {
-    if (!requireProAccess()) {
-      setWeightSheetOpen(false);
-      return;
-    }
     const w = parseFloat(draftWeight);
     if (!Number.isFinite(w) || w <= 0) {
       Alert.alert('Invalid', 'Enter a positive number.');
@@ -221,7 +216,7 @@ export function SettingsScreen(): React.ReactElement {
             {
               text: 'Open dose ladder',
               onPress: () => {
-                if (requireProAccess()) navigation.navigate('DoseLadder');
+                navigation.navigate('DoseLadder');
               },
             },
           ],
@@ -376,7 +371,7 @@ export function SettingsScreen(): React.ReactElement {
 
           <Pressable
             onPress={() => {
-              if (requireProAccess()) navigation.navigate('DoseLadder');
+              navigation.navigate('DoseLadder');
             }}
             accessibilityRole="button"
             accessibilityLabel={`Current dose: ${profile.currentDoseLabel || 'not set'}. Opens dose ladder.`}
@@ -404,7 +399,7 @@ export function SettingsScreen(): React.ReactElement {
 
           <Pressable
             onPress={() => {
-              if (requireProAccess()) navigation.navigate('Refill');
+              navigation.navigate('Refill');
             }}
             accessibilityRole="button"
             accessibilityLabel={
@@ -650,7 +645,7 @@ export function SettingsScreen(): React.ReactElement {
                 Doctor visit report
               </Text>
               <Text style={[theme.typography.caption, { color: theme.colors.textMuted, marginTop: 2 }]}>
-                Create and share a GLP-1 progress summary for your doctor
+                Create and share a GLP-1 progress summary. Pro.
               </Text>
             </View>
             <Text style={[theme.typography.bodyMedium, { color: theme.colors.primary }]}>›</Text>
@@ -1088,13 +1083,13 @@ function labelForEntitlement(ent: string, days: number | null): string {
 function sublabelForEntitlement(ent: string, _days: number | null): string {
   switch (ent) {
     case 'PRO':
-      return 'Doctor reports, coach alerts, milestones, and private tracking are active';
+      return 'Coach, doctor reports, milestones, and smart alerts are active';
     case 'TRIAL':
-      return 'Keep Today’s Coach, reports, and milestones after trial';
+      return 'Logging stays free. Keep coach, alerts, milestones, and reports after trial';
     case 'EXPIRED':
-      return 'Subscribe to keep your private GLP-1 coach';
+      return 'Logging stays free. Subscribe for coach, alerts, milestones, and reports';
     default:
-      return 'Start a private GLP-1 coach trial';
+      return '14-day Pro trial for coach, alerts, milestones, and reports';
   }
 }
 

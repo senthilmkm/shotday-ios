@@ -1,6 +1,7 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
+import { X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,6 +27,7 @@ import {
   computeEntitlement,
   trialDaysRemaining,
 } from '../../domain/entitlement';
+import { PRO_PAYWALL_BENEFITS } from '../../domain/proGating';
 import { useShotdayDb } from '../../hooks/useShotdayDb';
 import {
   fetchProducts,
@@ -38,13 +40,6 @@ import { useTheme } from '../../theme/ThemeProvider';
 import type { AppStackParamList } from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
-
-const BENEFITS = [
-  { title: 'Doctor-ready report', body: 'Share shots, missed/late doses, symptoms, weight, protein, refills, and notes in one clean summary.' },
-  { title: 'Smart GLP-1 coach', body: 'Today’s Coach and smart alerts show exactly what to log next so your data stays useful.' },
-  { title: 'Weight milestones', body: 'See weekly progress, 8-week rhythm, and weight-loss milestones that make consistency feel rewarding.' },
-  { title: 'Private by design', body: 'No account, no ads, and no health-data cloud. Your Shotday log stays on your device.' },
-];
 
 export function PaywallScreen(): React.ReactElement {
   const theme = useTheme();
@@ -150,11 +145,25 @@ export function PaywallScreen(): React.ReactElement {
   const purchaseLabel = purchasing ? 'Processing…' : purchaseCtaLabel(ent);
 
   return (
-    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['bottom']}>
+    <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={{ padding: theme.spacing.lg }}>
-        <Text style={[theme.typography.captionMedium, { color: theme.colors.primary }]}>
-          {SUBSCRIPTION_TITLE.toUpperCase()}
-        </Text>
+        <View style={styles.topHeaderRow}>
+          <Text style={[theme.typography.captionMedium, { color: theme.colors.primary, flex: 1 }]}>
+            {SUBSCRIPTION_TITLE.toUpperCase()}
+          </Text>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close subscription screen"
+            style={({ pressed }) => [
+              styles.closeIconBtn,
+              { backgroundColor: theme.colors.surface, opacity: pressed ? 0.6 : 1 },
+            ]}
+          >
+            <X size={18} color={theme.colors.text} strokeWidth={2} />
+          </Pressable>
+        </View>
         <Text style={[theme.typography.hero, { color: theme.colors.text, marginTop: 4 }]}>
           {headline}
         </Text>
@@ -163,7 +172,7 @@ export function PaywallScreen(): React.ReactElement {
         </Text>
 
         <View style={{ marginTop: 28 }}>
-          {BENEFITS.map((b) => (
+          {PRO_PAYWALL_BENEFITS.map((b) => (
             <View
               key={b.title}
               style={[
@@ -330,21 +339,18 @@ export function PaywallScreen(): React.ReactElement {
        *
        *   PRO     → "Done" closes the screen.
        *   TRIAL   → "Continue without subscribing" returns to Home.
-       *   EXPIRED → "Not now — keep using read-only history" returns
-       *             to Home. We deliberately do NOT hide this link
-       *             when the trial has expired: hiding it would
-       *             trap the user, which (a) violates App Review
-       *             3.1.2 ("auto-renewing subscriptions … must
-       *             allow users to cancel"), and (b) tanks our
-       *             1-star reviews. Read-only history + the paywall
-       *             banner on Home are enough friction.
+       *   EXPIRED → "Not now — keep logging for free" returns to Home.
+       *             Shot / Food / Symptoms stay available. We deliberately
+       *             do NOT hide this link: trapping the user would violate
+       *             App Review 3.1.2 and tank 1-star reviews. Pro extras
+       *             stay behind the Home banner and Settings row.
        */}
       <Button
         label={
           ent === 'PRO'
             ? 'Done'
             : isLocked
-              ? 'Not now — keep using read-only history'
+              ? 'Not now — keep logging for free'
               : 'Continue without subscribing'
         }
         variant="ghost"
@@ -368,13 +374,13 @@ function humanizeError(err: string | null): string {
 function paywallDescription(ent: string): string {
   switch (ent) {
     case 'EXPIRED':
-      return 'Subscribe to keep Today’s Coach, doctor reports, milestones, alerts, and your private GLP-1 history.';
+      return 'Logging stays free. Subscribe for Cycle Concierge, doctor reports, milestones, and smart alerts.';
     case 'PRO':
       return 'Thanks. You’re helping keep Shotday private, account-free, and ad-free.';
     case 'TRIAL':
-      return 'Keep your private GLP-1 coach, doctor-ready reports, smart alerts, and milestones after your trial.';
+      return 'Shot, food, and symptom logging stay free. Keep coach, doctor reports, smart alerts, and milestones after your trial.';
     default:
-      return `Turn your weekly logs into progress, milestones, and doctor-ready reports. ${FREE_TRIAL_LABEL} included.`;
+      return `Coach, alerts, milestones, and doctor reports. ${FREE_TRIAL_LABEL} included. Logging stays free.`;
   }
 }
 
@@ -398,6 +404,18 @@ function unavailablePurchaseMessage(ent: string): string {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  topHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  closeIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   benefit: {
     padding: 16,
     marginBottom: 10,
@@ -415,3 +433,4 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 });
+
