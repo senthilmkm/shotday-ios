@@ -108,11 +108,18 @@ export async function fetchProducts(): Promise<SubscriptionProduct[]> {
   const p = asPurchases();
   if (!p?.getOfferings) return mock;
   try {
-    const offerings = (await p.getOfferings()) as { current?: { availablePackages?: Array<{ identifier?: string; product?: { title?: string; priceString?: string; subscriptionPeriod?: string } }> } };
+    const offerings = (await p.getOfferings()) as {
+      current?: {
+        availablePackages?: Array<{
+          identifier?: string;
+          product?: { identifier?: string; title?: string; priceString?: string; subscriptionPeriod?: string };
+        }>;
+      };
+    };
     const pkgs = offerings?.current?.availablePackages ?? [];
     if (pkgs.length === 0) return mock;
     return pkgs.map((pkg) => ({
-      id: pkg.identifier ?? PRODUCT_IDS.monthly,
+      id: pkg.identifier ?? pkg.product?.identifier ?? PRODUCT_IDS.monthly,
       title: pkg.product?.title ?? 'Subscription',
       priceString: pkg.product?.priceString ?? '$4.99',
       period: (pkg.product?.subscriptionPeriod ?? 'P1M').includes('Y') ? 'YEAR' : 'MONTH',
@@ -137,11 +144,30 @@ export async function purchaseProduct(productId: string): Promise<PurchaseResult
     return { success: false, proUntil: null, error: 'unavailable' };
   }
   try {
-    const offerings = (await p.getOfferings()) as { current?: { availablePackages?: Array<{ identifier?: string }> } };
-    const pkg = offerings?.current?.availablePackages?.find((pkg) => pkg.identifier === productId);
+    const offerings = (await p.getOfferings()) as {
+      current?: {
+        availablePackages?: Array<{
+          identifier?: string;
+          product?: { identifier?: string };
+        }>;
+      };
+    };
+    const pkg = offerings?.current?.availablePackages?.find(
+      (pkg) => pkg.identifier === productId || pkg.product?.identifier === productId,
+    );
     if (!pkg) return { success: false, proUntil: null, error: 'product_not_found' };
-    const result = (await p.purchasePackage(pkg)) as { customerInfo?: { entitlements?: { active?: Record<string, { expirationDate?: string }> } } };
-    const proEntitlement = result?.customerInfo?.entitlements?.active?.pro;
+    const result = (await p.purchasePackage(pkg)) as {
+      customerInfo?: {
+        entitlements?: {
+          active?: Record<string, { expirationDate?: string }>;
+        };
+      };
+    };
+    const entitlements = result?.customerInfo?.entitlements?.active;
+    const proEntitlement =
+      entitlements?.pro ??
+      entitlements?.pro_access ??
+      (entitlements ? Object.values(entitlements)[0] : undefined);
     if (proEntitlement?.expirationDate) {
       return { success: true, proUntil: proEntitlement.expirationDate, error: null };
     }
@@ -167,8 +193,16 @@ export async function restorePurchases(): Promise<PurchaseResult> {
     return { success: false, proUntil: null, error: 'unavailable' };
   }
   try {
-    const info = (await p.restorePurchases()) as { entitlements?: { active?: Record<string, { expirationDate?: string }> } };
-    const proEntitlement = info?.entitlements?.active?.pro;
+    const info = (await p.restorePurchases()) as {
+      entitlements?: {
+        active?: Record<string, { expirationDate?: string }>;
+      };
+    };
+    const entitlements = info?.entitlements?.active;
+    const proEntitlement =
+      entitlements?.pro ??
+      entitlements?.pro_access ??
+      (entitlements ? Object.values(entitlements)[0] : undefined);
     if (proEntitlement?.expirationDate) {
       return { success: true, proUntil: proEntitlement.expirationDate, error: null };
     }

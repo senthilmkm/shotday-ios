@@ -131,18 +131,22 @@ export function PaywallScreen(): React.ReactElement {
   };
 
   const isLocked = ent === 'EXPIRED';
-  const headline =
-    ent === 'PRO'
-      ? 'You\u2019re Pro'
-      : ent === 'TRIAL'
-        ? trialDays === 0
-          ? 'Trial ends today'
-          : `${trialDays} day${trialDays === 1 ? '' : 's'} left in your trial`
-        : ent === 'EXPIRED'
-          ? 'Trial ended'
-          : 'Your private GLP-1 coach';
-  const description = paywallDescription(ent);
-  const purchaseLabel = purchasing ? 'Processing…' : purchaseCtaLabel(ent);
+  const isPro = ent === 'PRO';
+  const headline = isPro ? 'You\u2019re Pro' : 'Start Your 14-Day Free Trial';
+  const description = isPro
+    ? 'Thanks. You\u2019re helping keep Shotday private, account-free, and ad-free.'
+    : 'Full access to Cycle Concierge, smart alerts, medication levels, and doctor reports. $0.00 today.';
+  const purchaseLabel = purchasing
+    ? 'Processing…'
+    : isPro
+      ? 'Manage Subscription'
+      : 'Start 14-Day Free Trial \u2014 $0.00 Today';
+
+  const selectedProduct = products.find((p) => p.id === selectedId);
+  const trialTermsText =
+    selectedProduct?.period === 'YEAR'
+      ? '14 days free, then $29.99/year (~$2.50/mo). Cancel anytime in Apple ID Settings.'
+      : '14 days free, then $4.99/month. Cancel anytime in Apple ID Settings.';
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: theme.colors.bg }]} edges={['top', 'bottom']}>
@@ -250,7 +254,21 @@ export function PaywallScreen(): React.ReactElement {
               style={{ marginTop: 16 }}
             />
 
-            <Pressable onPress={onRestore} disabled={restoring} style={({ pressed }) => [{ marginTop: 16, opacity: pressed ? 0.5 : 1 }]}>
+            <Text
+              style={[
+                theme.typography.caption,
+                {
+                  color: theme.colors.textMuted,
+                  marginTop: 8,
+                  marginBottom: 4,
+                  textAlign: 'center',
+                },
+              ]}
+            >
+              {trialTermsText}
+            </Text>
+
+            <Pressable onPress={onRestore} disabled={restoring} style={({ pressed }) => [{ marginTop: 12, opacity: pressed ? 0.5 : 1 }]}>
               <Text
                 style={[
                   theme.typography.captionMedium,
@@ -347,11 +365,11 @@ export function PaywallScreen(): React.ReactElement {
        */}
       <Button
         label={
-          ent === 'PRO'
+          isPro
             ? 'Done'
             : isLocked
               ? 'Not now — keep logging for free'
-              : 'Continue without subscribing'
+              : 'Continue with basic free logging'
         }
         variant="ghost"
         fullWidth
