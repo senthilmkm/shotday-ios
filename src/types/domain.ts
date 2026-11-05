@@ -299,6 +299,11 @@ export interface UserProfile {
    * when testing the paywall flow in Expo Go where IAP can't run.
    */
   devProOverride: boolean;
+  /**
+   * Tracks whether the user has been presented with the post-onboarding paywall.
+   * Prevents re-opening the paywall automatically on every subsequent cold launch.
+   */
+  hasSeenOnboardingPaywall?: boolean;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -343,6 +348,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   trialStartedAt: null,
   proUntil: null,
   devProOverride: false,
+  hasSeenOnboardingPaywall: false,
 };
 
 export const EMPTY_DB: ShotdayDb = {

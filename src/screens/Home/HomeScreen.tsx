@@ -370,25 +370,43 @@ export function HomeScreen(): React.ReactElement {
     [db.refill, db.injections, today],
   );
 
-  // Subscription / trial — banner is the only entry point. We never
-  // auto-push the paywall on cold launch: that was hostile UX, kicking
-  // the user out of Home before they could even see what they were
-  // paying for. The "TRIAL ENDED" banner is sticky at the top of Home
-  // and the Settings → Subscription row is always one tap away.
+  // Subscription / trial — the post-onboarding paywall presents ONCE
+  // immediately after initial setup to offer the 14-day Apple Free Trial.
+  // We persist `hasSeenOnboardingPaywall` so we NEVER auto-push the paywall
+  // on subsequent cold launches: that was hostile UX, hijacking the
+  // screen when the user just wants to log their shot, food, or symptoms.
+  // Pro extras remain accessible via the top banner and Settings row.
   const entitlement = computeEntitlement(db.profile, today);
   const trialDays = trialDaysRemaining(db.profile, today);
   const showTrialBanner = shouldShowTrialBanner(db.profile, today);
-  const [onboardingPaywallShownThisSession, setOnboardingPaywallShownThisSession] = useState(false);
 
   useEffect(() => {
-    if (db.profile.onboardingComplete && !db.profile.proUntil && !onboardingPaywallShownThisSession) {
-      setOnboardingPaywallShownThisSession(true);
+    if (
+      db.profile.onboardingComplete &&
+      !db.profile.proUntil &&
+      !db.profile.hasSeenOnboardingPaywall
+    ) {
+      const isExistingActiveUser = db.injections.length > 0;
+      updateDb((prev) => ({
+        ...prev,
+        profile: { ...prev.profile, hasSeenOnboardingPaywall: true },
+      }));
+      if (isExistingActiveUser) {
+        return;
+      }
       const timer = setTimeout(() => {
         navigation.navigate('Paywall');
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [db.profile.onboardingComplete, db.profile.proUntil, onboardingPaywallShownThisSession, navigation]);
+  }, [
+    db.profile.onboardingComplete,
+    db.profile.proUntil,
+    db.profile.hasSeenOnboardingPaywall,
+    db.injections.length,
+    navigation,
+    updateDb,
+  ]);
 
 
   useEffect(() => {
